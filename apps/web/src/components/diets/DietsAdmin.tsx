@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
 import { parseApiError, showErrorToast, showSuccessToast } from '@/lib/errors';
 import { apiFetch, apiJson } from '@/lib/api';
+import { cn } from '@/lib/cn';
 
 type DietAdminRow = {
   id: string;
@@ -35,7 +36,11 @@ function formatUpdated(iso: string): string {
 
 type PanelMode = 'closed' | 'create' | 'edit';
 
-export function DietsAdmin() {
+type DietsAdminProps = {
+  embedded?: boolean;
+};
+
+export function DietsAdmin({ embedded = false }: DietsAdminProps) {
   const [rows, setRows] = useState<DietAdminRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
@@ -171,27 +176,34 @@ export function DietsAdmin() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-6xl px-4 py-8">
-        <div className="mb-8 h-24 animate-pulse rounded-xl bg-muted" />
+      <div className={cn('relative mx-auto max-w-6xl px-4', embedded ? 'pb-10 pt-6' : 'py-8')}>
+        <div className="mb-6 h-20 animate-pulse rounded-xl bg-muted" />
         <div className="h-96 animate-pulse rounded-xl bg-muted" />
       </div>
     );
   }
 
   return (
-    <div className="relative mx-auto max-w-6xl px-4 py-8">
-      <header className="mb-8 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-brand-700 dark:text-brand-400">
-            Biblioteca
-          </p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Dietas</h1>
-          <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-            CRUD estilo CMS: tabla con búsqueda, panel lateral para crear o editar, y eliminación con confirmación.
-          </p>
-        </div>
-        <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center lg:w-auto">
-          <div className="relative min-w-[200px] flex-1 lg:max-w-xs">
+    <div className={cn('relative mx-auto max-w-6xl px-4', embedded ? 'pb-10 pt-6' : 'py-8')}>
+      <header
+        className={cn(
+          'mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between',
+          embedded && 'lg:gap-6',
+        )}
+      >
+        {!embedded ? (
+          <div className="lg:max-w-md">
+            <p className="text-xs font-semibold uppercase tracking-wider text-brand-700 dark:text-brand-400">
+              Biblioteca
+            </p>
+            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Dietas</h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              CRUD estilo CMS: tabla con búsqueda, panel lateral para crear o editar, y eliminación con confirmación.
+            </p>
+          </div>
+        ) : null}
+        <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center lg:ml-auto lg:w-auto lg:flex-1 lg:justify-end">
+          <div className="relative min-w-[200px] flex-1 lg:max-w-md">
             <Search
               className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
               aria-hidden

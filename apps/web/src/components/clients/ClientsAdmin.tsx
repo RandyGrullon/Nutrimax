@@ -27,7 +27,12 @@ function formatUpdated(iso: string): string {
   }
 }
 
-export function ClientsAdmin() {
+type ClientsAdminProps = {
+  /** Oculta el bloque de título duplicado cuando la página ya muestra `CmsListPageHero`. */
+  embedded?: boolean;
+};
+
+export function ClientsAdmin({ embedded = false }: ClientsAdminProps) {
   const [rows, setRows] = useState<ClientAdminRow[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
@@ -89,12 +94,16 @@ export function ClientsAdmin() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-6xl px-4 py-8">
-        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <Skeleton className="mb-2 h-4 w-48" />
-            <Skeleton className="h-9 w-64" />
-          </div>
+      <div className={cn('mx-auto max-w-6xl px-4', embedded ? 'pb-10 pt-6' : 'py-8')}>
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          {!embedded ? (
+            <div>
+              <Skeleton className="mb-2 h-4 w-48" />
+              <Skeleton className="h-9 w-64" />
+            </div>
+          ) : (
+            <Skeleton className="h-10 max-w-xs flex-1" />
+          )}
           <Skeleton className="h-10 w-40" />
         </div>
         <Skeleton className="h-[420px] w-full rounded-xl" />
@@ -105,19 +114,26 @@ export function ClientsAdmin() {
   const list = rows ?? [];
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8">
-      <header className="mb-8 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-brand-700 dark:text-brand-400">
-            Contenido
-          </p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Pacientes</h1>
-          <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-            Vista tipo CMS: busca, abre la ficha, edita con el asistente o elimina registros que ya no necesites.
-          </p>
-        </div>
-        <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center lg:w-auto">
-          <div className="relative min-w-[200px] flex-1 lg:max-w-xs">
+    <div className={cn('mx-auto max-w-6xl px-4', embedded ? 'pb-10 pt-6' : 'py-8')}>
+      <header
+        className={cn(
+          'mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between',
+          embedded && 'lg:gap-6',
+        )}
+      >
+        {!embedded ? (
+          <div className="lg:max-w-md">
+            <p className="text-xs font-semibold uppercase tracking-wider text-brand-700 dark:text-brand-400">
+              Contenido
+            </p>
+            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Pacientes</h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Vista tipo CMS: busca, abre la ficha, edita con el asistente o elimina registros que ya no necesites.
+            </p>
+          </div>
+        ) : null}
+        <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center lg:ml-auto lg:w-auto lg:flex-1 lg:justify-end">
+          <div className="relative min-w-[200px] flex-1 lg:max-w-md">
             <Search
               className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
               aria-hidden

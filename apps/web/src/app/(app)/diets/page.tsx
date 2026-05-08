@@ -1,5 +1,27 @@
+import type { Metadata } from 'next';
 import { DietsAdmin } from '@/components/diets/DietsAdmin';
+import { CmsListPageHero } from '@/components/cms/CmsListPageHero';
+
+export const metadata: Metadata = {
+  title: 'Dietas',
+  description:
+    'Biblioteca de dietas NutriMax: crea planes reutilizables, edítalos en panel lateral, búscalos y elimínalos con validación de asignaciones.',
+  openGraph: {
+    title: 'Dietas | NutriMax',
+    description: 'CMS de biblioteca nutricional y planes asignables a pacientes.',
+  },
+};
 
 export default function DietsPage() {
-  return <DietsAdmin />;
+  return (
+    <div className="min-h-0">
+      <CmsListPageHero
+        eyebrow="Biblioteca nutricional"
+        title="Dietas"
+        description="Administra la biblioteca de planes: alta y edición en panel lateral, tabla con búsqueda y bajas seguras cuando no haya dependencias con pacientes."
+        crumbs={[{ label: 'Inicio', href: '/' }, { label: 'Dietas' }]}
+      />
+      <DietsAdmin embedded />
+    </div>
+  );
 }
