@@ -373,3 +373,5 @@ export function DietsAdmin({ embedded = false }: DietsAdminProps) {
     </div>
   );
 }
+
+export default DietsAdmin;
