@@ -26,11 +26,14 @@ type DietAdminRow = {
   updated_at: string;
 };
 
-function formatUpdated(iso: string): string {
+function formatUpdated(iso: string | undefined): string {
+  if (!iso) return '—';
   try {
-    return new Intl.DateTimeFormat('es', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(iso));
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '—';
+    return new Intl.DateTimeFormat('es', { dateStyle: 'medium', timeStyle: 'short' }).format(d);
   } catch {
-    return iso;
+    return '—';
   }
 }
 
@@ -102,10 +105,15 @@ export function DietsAdmin({ embedded = false }: DietsAdminProps) {
     }
   }
 
-  function closePanel() {
-    if (saving) return;
+  /** Cierra el panel ignorando `saving` (p. ej. tras guardar correctamente). */
+  function resetPanel() {
     setPanel('closed');
     setEditId(null);
+  }
+
+  function closePanel() {
+    if (saving) return;
+    resetPanel();
   }
 
   async function onSave(e: React.FormEvent) {
@@ -145,7 +153,7 @@ export function DietsAdmin({ embedded = false }: DietsAdminProps) {
         }
         showSuccessToast('Dieta actualizada.');
       }
-      closePanel();
+      resetPanel();
       await load();
     } catch {
       showErrorToast('No pudimos guardar.');
@@ -165,7 +173,7 @@ export function DietsAdmin({ embedded = false }: DietsAdminProps) {
       }
       showSuccessToast('Dieta eliminada.');
       setDeleteTarget(null);
-      if (editId === deleteTarget.id) closePanel();
+      if (editId === deleteTarget.id) resetPanel();
       await load();
     } catch {
       showErrorToast('No pudimos eliminar la dieta.');
