@@ -15,7 +15,13 @@ export async function withApiAuth(
       return NextResponse.json({ message: e.message }, { status: e.status });
     }
     if (e instanceof ZodError) {
-      return NextResponse.json({ message: 'Validation error', issues: e.flatten() }, { status: 400 });
+      return NextResponse.json(
+        {
+          message: 'Los datos enviados no son válidos. Revisa el formulario.',
+          issues: e.flatten(),
+        },
+        { status: 400 },
+      );
     }
     console.error(e);
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 });

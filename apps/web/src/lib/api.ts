@@ -10,17 +10,40 @@ function externalApiBase(): string | null {
 
 export async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
   const supabase = createClient();
-  const { data } = await supabase.auth.getSession();
-  const token = data.session?.access_token;
-  const headers = new Headers(init.headers);
-  headers.set('Content-Type', 'application/json');
-  if (token) {
-    headers.set('Authorization', `Bearer ${token}`);
+  const baseHeaders = new Headers(init.headers);
+  baseHeaders.set('Content-Type', 'application/json');
+
+  async function accessToken(): Promise<string | null> {
+    const { error: userErr } = await supabase.auth.getUser();
+    if (userErr) return null;
+    const { data } = await supabase.auth.getSession();
+    return data.session?.access_token ?? null;
   }
 
-  const ext = externalApiBase();
-  const url = ext ? `${ext}${path.startsWith('/') ? path : `/${path}`}` : toApiPath(path);
-  return fetch(url, { ...init, headers });
+  async function doFetch(): Promise<Response> {
+    const token = await accessToken();
+    const headers = new Headers(baseHeaders);
+    if (token) headers.set('Authorization', `Bearer ${token}`);
+    const ext = externalApiBase();
+    const url = ext ? `${ext}${path.startsWith('/') ? path : `/${path}`}` : toApiPath(path);
+    return fetch(url, { ...init, headers });
+  }
+
+  let res = await doFetch();
+  if (res.status === 401) {
+    await supabase.auth.refreshSession();
+    res = await doFetch();
+  }
+
+  if (
+    res.status === 401 &&
+    typeof window !== 'undefined' &&
+    !window.location.pathname.startsWith('/login')
+  ) {
+    window.location.assign('/login');
+  }
+
+  return res;
 }
 
 export async function apiJson<T>(path: string, init?: RequestInit): Promise<T> {

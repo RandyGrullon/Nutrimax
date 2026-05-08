@@ -10,17 +10,32 @@ function externalApiBase(): string | null {
 
 export async function apiServerFetch(path: string, init: RequestInit = {}): Promise<Response> {
   const supabase = await createClient();
-  const { data } = await supabase.auth.getSession();
-  const token = data.session?.access_token;
-  const headers = new Headers(init.headers);
-  headers.set('Content-Type', 'application/json');
-  if (token) headers.set('Authorization', `Bearer ${token}`);
+  const baseHeaders = new Headers(init.headers);
+  baseHeaders.set('Content-Type', 'application/json');
 
-  const ext = externalApiBase();
-  const pathNorm = path.startsWith('/') ? path : `/${path}`;
-  const url = ext ? `${ext}${pathNorm}` : `${await getInternalApiOrigin()}${toApiPath(pathNorm)}`;
+  async function accessToken(): Promise<string | null> {
+    const { error: userErr } = await supabase.auth.getUser();
+    if (userErr) return null;
+    const { data } = await supabase.auth.getSession();
+    return data.session?.access_token ?? null;
+  }
 
-  return fetch(url, { ...init, headers, cache: 'no-store' });
+  async function doFetch(): Promise<Response> {
+    const token = await accessToken();
+    const headers = new Headers(baseHeaders);
+    if (token) headers.set('Authorization', `Bearer ${token}`);
+    const ext = externalApiBase();
+    const pathNorm = path.startsWith('/') ? path : `/${path}`;
+    const url = ext ? `${ext}${pathNorm}` : `${await getInternalApiOrigin()}${toApiPath(pathNorm)}`;
+    return fetch(url, { ...init, headers, cache: 'no-store' });
+  }
+
+  let res = await doFetch();
+  if (res.status === 401) {
+    await supabase.auth.refreshSession();
+    res = await doFetch();
+  }
+  return res;
 }
 
 export async function apiServerJson<T>(path: string, init?: RequestInit): Promise<T> {

@@ -17,7 +17,7 @@ export function MetricInfoButton({ label, title, children }: MetricInfoButtonPro
     <>
       <button
         type="button"
-        className="inline-flex rounded-full p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-800 focus-visible:outline focus-visible:ring-2 focus-visible:ring-brand-500"
+        className="inline-flex rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         aria-label={`Información sobre ${label}`}
         aria-haspopup="dialog"
         onClick={() => dialogRef.current?.showModal()}
@@ -26,23 +26,23 @@ export function MetricInfoButton({ label, title, children }: MetricInfoButtonPro
       </button>
       <dialog
         ref={dialogRef}
-        className="w-[min(100%,28rem)] rounded-2xl border border-slate-200 p-0 shadow-xl backdrop:bg-black/40"
+        className="w-[min(100%,28rem)] rounded-2xl border border-border bg-card p-0 text-card-foreground shadow-xl backdrop:bg-black/50"
         aria-labelledby={titleId}
       >
         <div className="max-h-[80dvh] overflow-y-auto p-4">
           <div className="mb-3 flex items-start justify-between gap-2">
-            <h2 id={titleId} className="text-base font-semibold text-slate-900">
+            <h2 id={titleId} className="text-base font-semibold text-foreground">
               {title}
             </h2>
             <button
               type="button"
-              className="rounded-lg px-2 py-1 text-sm text-slate-600 hover:bg-slate-100"
+              className="rounded-lg px-2 py-1 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
               onClick={() => dialogRef.current?.close()}
             >
               Cerrar
             </button>
           </div>
-          <div className="prose prose-sm max-w-none text-slate-700">{children}</div>
+          <div className="prose prose-sm max-w-none text-muted-foreground dark:prose-invert">{children}</div>
         </div>
       </dialog>
     </>

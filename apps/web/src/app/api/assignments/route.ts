@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
       starts_on?: string;
     };
     if (!body.client_id || !body.diet_id) {
-      throw new ApiError(400, 'client_id and diet_id required');
+      throw new ApiError(400, 'Indica paciente y dieta para asignar.');
     }
     return assignDiet({
       client_id: body.client_id,

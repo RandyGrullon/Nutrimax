@@ -45,7 +45,7 @@ export async function listClients(): Promise<ClientRow[]> {
 
 export async function getClientById(id: string): Promise<ClientRow> {
   const row = await dbQueryOne<ClientRow>(`SELECT * FROM clients WHERE id = $1`, [id]);
-  if (!row) throw new ApiError(404, 'Client not found');
+  if (!row) throw new ApiError(404, 'No encontramos ese paciente.');
   return row;
 }
 
@@ -152,4 +152,10 @@ export async function getTimeline(clientId: string, limit = 50): Promise<unknown
     `SELECT * FROM client_timeline_events WHERE client_id = $1 ORDER BY created_at DESC LIMIT $2`,
     [clientId, limit],
   );
+}
+
+export async function deleteClient(id: string): Promise<{ deleted: true }> {
+  await getClientById(id);
+  await dbQuery(`DELETE FROM clients WHERE id = $1`, [id]);
+  return { deleted: true };
 }

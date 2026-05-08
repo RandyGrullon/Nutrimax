@@ -16,7 +16,7 @@ export async function listDiets(): Promise<DietRow[]> {
 
 export async function getDietById(id: string): Promise<DietRow> {
   const row = await dbQueryOne<DietRow>(`SELECT * FROM diets WHERE id = $1`, [id]);
-  if (!row) throw new ApiError(404, 'Diet not found');
+  if (!row) throw new ApiError(404, 'No encontramos esa dieta.');
   return row;
 }
 
@@ -52,4 +52,22 @@ export async function updateDiet(
     ],
   );
   return rows[0];
+}
+
+export async function deleteDiet(id: string): Promise<{ deleted: true }> {
+  await getDietById(id);
+  try {
+    await dbQuery(`DELETE FROM diets WHERE id = $1`, [id]);
+  } catch (e: unknown) {
+    const code =
+      typeof e === 'object' && e !== null && 'code' in e ? String((e as { code: unknown }).code) : '';
+    if (code === '23503') {
+      throw new ApiError(
+        409,
+        'No se puede eliminar: la dieta está vinculada a pacientes. Archiva o reasigna antes.',
+      );
+    }
+    throw e;
+  }
+  return { deleted: true };
 }

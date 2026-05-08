@@ -33,12 +33,12 @@ export function MetricsPanel({ control }: { control: Control<CreateClientBody> }
   };
 
   return (
-    <aside className="rounded-2xl border border-emerald-100 bg-emerald-50/80 p-4 text-sm shadow-inner">
-      <h3 className="mb-3 font-semibold text-emerald-900">Resumen calculado</h3>
+    <aside className="rounded-2xl border border-emerald-500/25 bg-emerald-500/5 p-4 text-sm shadow-inner dark:border-emerald-400/20 dark:bg-emerald-950/40">
+      <h3 className="mb-3 font-semibold text-emerald-900 dark:text-emerald-100">Resumen calculado</h3>
       <motion.ul className="flex flex-col gap-3" initial="hidden" animate="show" variants={{ show: { transition: { staggerChildren: 0.04 } } }}>
-        <motion.li variants={item} className="rounded-lg bg-white/80 p-3 shadow-sm">
+        <motion.li variants={item} className="rounded-lg bg-card/90 p-3 shadow-sm dark:bg-card/60">
           <div className="flex items-center justify-between gap-2">
-            <span className="font-medium text-slate-800">IMC</span>
+            <span className="font-medium text-foreground">IMC</span>
             <MetricInfoButton label="IMC" title="Índice de masa corporal">
               <p>
                 El IMC relaciona peso y talla. Fórmula: peso (kg) ÷ estatura (m)². Es una referencia de
@@ -54,20 +54,20 @@ export function MetricsPanel({ control }: { control: Control<CreateClientBody> }
               </ul>
             </MetricInfoButton>
           </div>
-          <p className="mt-1 text-slate-700">
+          <p className="mt-1 text-muted-foreground">
             {metrics.bmi != null ? (
               <>
                 {metrics.bmi.toFixed(1)} — {metrics.bmiCategory?.replace(/_/g, ' ')}
               </>
             ) : (
-              <span className="text-slate-500">Ingresa peso y estatura</span>
+              <span className="text-muted-foreground/80">Ingresa peso y estatura</span>
             )}
           </p>
         </motion.li>
 
-        <motion.li variants={item} className="rounded-lg bg-white/80 p-3 shadow-sm">
+        <motion.li variants={item} className="rounded-lg bg-card/90 p-3 shadow-sm dark:bg-card/60">
           <div className="flex items-center justify-between gap-2">
-            <span className="font-medium text-slate-800">% grasa (interpretación)</span>
+            <span className="font-medium text-foreground">% grasa (interpretación)</span>
             <MetricInfoButton label="grasa corporal" title="Porcentaje de grasa corporal">
               <p>
                 Clasificación orientativa según sexo. No sustituye evaluación clínica ni el juicio del
@@ -75,16 +75,16 @@ export function MetricsPanel({ control }: { control: Control<CreateClientBody> }
               </p>
             </MetricInfoButton>
           </div>
-          <p className="mt-1 text-slate-700">
+          <p className="mt-1 text-muted-foreground">
             {metrics.bodyFatCategory && metrics.bodyFatCategory !== 'insuficientes_datos'
               ? metrics.bodyFatCategory.replace(/_/g, ' ')
               : 'Indica % grasa o informe de bioimpedancia'}
           </p>
         </motion.li>
 
-        <motion.li variants={item} className="rounded-lg bg-white/80 p-3 shadow-sm">
+        <motion.li variants={item} className="rounded-lg bg-card/90 p-3 shadow-sm dark:bg-card/60">
           <div className="flex items-center justify-between gap-2">
-            <span className="font-medium text-slate-800">Peso ideal sugerido</span>
+            <span className="font-medium text-foreground">Peso ideal sugerido</span>
             <MetricInfoButton label="peso ideal" title="Rango de peso sugerido">
               <p>
                 Rango derivado de IMC 18,5–24,9 para tu estatura. La meta del paciente puede diferir; el
@@ -92,21 +92,21 @@ export function MetricsPanel({ control }: { control: Control<CreateClientBody> }
               </p>
             </MetricInfoButton>
           </div>
-          <p className="mt-1 text-slate-700">
+          <p className="mt-1 text-muted-foreground">
             {metrics.idealWeightMinKg != null && metrics.idealWeightMaxKg != null ? (
               <>
                 {metrics.idealWeightMinKg.toFixed(1)} – {metrics.idealWeightMaxKg.toFixed(1)} kg (punto medio{' '}
                 {metrics.idealWeightSuggestedKg?.toFixed(1)} kg)
               </>
             ) : (
-              <span className="text-slate-500">—</span>
+              <span className="text-muted-foreground/80">—</span>
             )}
           </p>
         </motion.li>
 
-        <motion.li variants={item} className="rounded-lg bg-white/80 p-3 shadow-sm">
+        <motion.li variants={item} className="rounded-lg bg-card/90 p-3 shadow-sm dark:bg-card/60">
           <div className="flex items-center justify-between gap-2">
-            <span className="font-medium text-slate-800">Energía (TMB / GET / objetivo)</span>
+            <span className="font-medium text-foreground">Energía (TMB / GET / objetivo)</span>
             <MetricInfoButton label="calorías" title="Tasa metabólica y calorías">
               <p>
                 TMB: Mifflin–St Jeor. GET aproximada = TMB × factor de actividad (trabajo, ejercicio,
@@ -114,7 +114,7 @@ export function MetricsPanel({ control }: { control: Control<CreateClientBody> }
               </p>
             </MetricInfoButton>
           </div>
-          <p className="mt-1 text-slate-700">
+          <p className="mt-1 text-muted-foreground">
             {metrics.bmrKcal != null ? (
               <>
                 TMB {metrics.bmrKcal} kcal · GET ~{metrics.tdeeKcal} kcal · Objetivo ~{metrics.targetKcal}{' '}
@@ -122,43 +122,43 @@ export function MetricsPanel({ control }: { control: Control<CreateClientBody> }
                 {metrics.calorieFloorWarning ? ' (mínimo de seguridad aplicado)' : ''}
               </>
             ) : (
-              <span className="text-slate-500">Completa edad y sexo para TMB/GET</span>
+              <span className="text-muted-foreground/80">Completa edad y sexo para TMB/GET</span>
             )}
           </p>
         </motion.li>
 
-        <motion.li variants={item} className="rounded-lg bg-white/80 p-3 shadow-sm">
+        <motion.li variants={item} className="rounded-lg bg-card/90 p-3 shadow-sm dark:bg-card/60">
           <div className="flex items-center justify-between gap-2">
-            <span className="font-medium text-slate-800">Macronutrientes</span>
+            <span className="font-medium text-foreground">Macronutrientes</span>
             <MetricInfoButton label="macros" title="Proteínas, carbohidratos y grasas">
               <p>Distribución porcentual sobre calorías objetivo; gramos calculados (4 kcal/g P/C, 9 kcal/g G).</p>
             </MetricInfoButton>
           </div>
-          <p className="mt-1 text-slate-700">
+          <p className="mt-1 text-muted-foreground">
             {metrics.proteinG != null ? (
               <>
                 P {metrics.proteinG} g · CH {metrics.carbsG} g · G {metrics.fatG} g
               </>
             ) : (
-              <span className="text-slate-500">—</span>
+              <span className="text-muted-foreground/80">—</span>
             )}
           </p>
         </motion.li>
 
-        <motion.li variants={item} className="rounded-lg bg-white/80 p-3 shadow-sm">
+        <motion.li variants={item} className="rounded-lg bg-card/90 p-3 shadow-sm dark:bg-card/60">
           <div className="flex items-center justify-between gap-2">
-            <span className="font-medium text-slate-800">Agua recomendada</span>
+            <span className="font-medium text-foreground">Agua recomendada</span>
             <MetricInfoButton label="agua" title="Hidratación orientativa">
               <p>Regla práctica ~35 ml/kg, con límites mín/máx. Compara con lo declarado en hábitos.</p>
             </MetricInfoButton>
           </div>
-          <p className="mt-1 text-slate-700">
+          <p className="mt-1 text-muted-foreground">
             {metrics.waterRecommendedLiters != null ? <>~{metrics.waterRecommendedLiters} L/día</> : '—'}
           </p>
         </motion.li>
       </motion.ul>
       {metrics.messages?.length ? (
-        <p className="mt-3 text-xs text-amber-800">{metrics.messages.join(' ')}</p>
+        <p className="mt-3 text-xs text-amber-800 dark:text-amber-200/90">{metrics.messages.join(' ')}</p>
       ) : null}
     </aside>
   );

@@ -65,7 +65,7 @@ export async function archiveAssignment(assignmentId: string): Promise<{ ok: boo
        WHERE id = $1 RETURNING client_id`,
     [assignmentId],
   );
-  if (!row) throw new ApiError(404, 'Assignment not found');
+  if (!row) throw new ApiError(404, 'No encontramos esa asignación.');
   await dbQuery(
     `INSERT INTO client_timeline_events (client_id, type, title, body, payload)
        VALUES ($1, 'diet_changed', 'Asignación de dieta archivada', null, $2::jsonb)`,

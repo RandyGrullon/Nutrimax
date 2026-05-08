@@ -17,9 +17,13 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState, type TextareaHTMLAttributes } from 'react';
-import { FormProvider, useForm } from 'react-hook-form';
+import { FormProvider, useForm, type Path } from 'react-hook-form';
 import { apiFetch } from '@/lib/api';
 import { MetricsPanel } from '@/components/MetricsPanel';
+import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
+import { Textarea } from '@/components/ui/Textarea';
+import { parseApiError, showErrorToast, showSuccessToast } from '@/lib/errors';
 
 const STEPS = [
   { id: 1, title: 'Datos y antropometría', icon: User },
@@ -32,6 +36,76 @@ const STEPS = [
   { id: 8, title: 'Preferencias', icon: Apple },
   { id: 9, title: 'Salud digestiva', icon: HeartPulse },
 ] as const;
+
+const STEP_FIELDS: Record<number, Path<CreateClientBody>[]> = {
+  1: [
+    'full_name',
+    'email',
+    'phone',
+    'age',
+    'sex',
+    'weight_kg',
+    'height_cm',
+    'body_fat_pct',
+    'waist_cm',
+    'goal_weight_kg',
+    'bioimpedance_report',
+  ],
+  2: [
+    'clinical_profile.step2.goal',
+    'clinical_profile.step2.timeframe',
+    'clinical_profile.step2.pastDiets',
+  ],
+  3: [
+    'clinical_profile.step3.conditions',
+    'clinical_profile.step3.digestive',
+    'clinical_profile.step3.allergies',
+    'clinical_profile.step3.pregnancyLactation',
+    'clinical_profile.step3.medications',
+  ],
+  4: [
+    'clinical_profile.step4.emotionalEating',
+    'clinical_profile.step4.bingeEpisodes',
+    'clinical_profile.step4.foodRelationship',
+    'clinical_profile.step4.guiltOrRestriction',
+  ],
+  5: [
+    'clinical_profile.step5.mealsPerDay',
+    'clinical_profile.step5.usualMealTimes',
+    'clinical_profile.step5.breakfast',
+    'clinical_profile.step5.snacks',
+    'clinical_profile.step5.eatingOutFrequency',
+    'clinical_profile.step5.sugar',
+    'clinical_profile.step5.alcohol',
+    'clinical_profile.step5.sodasJuices',
+    'clinical_profile.step5.waterDaily',
+  ],
+  6: [
+    'clinical_profile.step6.wakeSleep',
+    'clinical_profile.step6.workType',
+    'clinical_profile.step6.stressLevel',
+    'clinical_profile.step6.sleepQuality',
+  ],
+  7: [
+    'clinical_profile.step7.exercises',
+    'clinical_profile.step7.exerciseType',
+    'clinical_profile.step7.frequencyPerWeek',
+    'clinical_profile.step7.durationMinutes',
+  ],
+  8: [
+    'clinical_profile.step8.likes',
+    'clinical_profile.step8.dislikes',
+    'clinical_profile.step8.budget',
+    'clinical_profile.step8.kitchenAccess',
+    'clinical_profile.step8.foodCulture',
+  ],
+  9: [
+    'clinical_profile.step9.bowelFrequency',
+    'clinical_profile.step9.bloating',
+    'clinical_profile.step9.reflux',
+    'clinical_profile.step9.perceivedIntolerances',
+  ],
+};
 
 const defaultValues: CreateClientBody = {
   full_name: '',
@@ -93,7 +167,6 @@ export function ClientWizard({
 }) {
   const router = useRouter();
   const [step, setStep] = useState(1);
-  const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [bioOpen, setBioOpen] = useState(false);
   const reduceMotion = useReducedMotion();
@@ -104,27 +177,42 @@ export function ClientWizard({
     mode: 'onBlur',
   });
 
-  const { register, handleSubmit, control, formState } = form;
+  const { register, handleSubmit, control, trigger } = form;
 
   async function onValid(data: CreateClientBody) {
-    setError(null);
     setSaving(true);
     try {
       const path = mode === 'create' ? '/clients' : `/clients/${clientId}`;
       const method = mode === 'create' ? 'POST' : 'PUT';
       const res = await apiFetch(path, { method, body: JSON.stringify(data) });
       if (!res.ok) {
-        const t = await res.text();
-        throw new Error(t || res.statusText);
+        showErrorToast(await parseApiError(res));
+        return;
       }
       const json = (await res.json()) as { id: string };
+      showSuccessToast(mode === 'create' ? 'Paciente creado correctamente.' : 'Cambios guardados.');
       router.push(`/clients/${json.id}`);
       router.refresh();
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Error al guardar');
+    } catch {
+      showErrorToast('No pudimos guardar el paciente.');
     } finally {
       setSaving(false);
     }
+  }
+
+  async function onFormSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (step < 9) {
+      const fields = STEP_FIELDS[step];
+      const ok = await trigger(fields, { shouldFocus: true });
+      if (!ok) {
+        showErrorToast('Revisa los datos de este paso antes de continuar.');
+        return;
+      }
+      next();
+      return;
+    }
+    void handleSubmit(onValid)(e);
   }
 
   function next() {
@@ -138,28 +226,18 @@ export function ClientWizard({
 
   return (
     <FormProvider {...form}>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (step < 9) {
-            next();
-            return;
-          }
-          void handleSubmit(onValid)(e);
-        }}
-        className="mx-auto max-w-3xl px-4 py-6"
-      >
+      <form onSubmit={onFormSubmit} className="mx-auto max-w-3xl px-4 py-6">
         <header className="mb-6">
-          <p className="text-xs font-medium uppercase tracking-wide text-brand-800">
+          <p className="text-xs font-medium uppercase tracking-wide text-brand-800 dark:text-brand-300">
             Paso {step} de 9 · {Math.round((step / 9) * 100)}%
           </p>
           <div className="mt-2 flex items-center gap-2">
             <StepIcon className="h-6 w-6 text-brand-700" aria-hidden />
-            <h1 className="text-xl font-semibold text-slate-900">{STEPS[step - 1].title}</h1>
+            <h1 className="text-xl font-semibold text-foreground">{STEPS[step - 1].title}</h1>
           </div>
-          <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-slate-200">
+          <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-muted">
             <div
-              className="h-full bg-brand-600 transition-all duration-300"
+              className="h-full bg-brand-600 transition-all duration-300 dark:bg-brand-500"
               style={{ width: `${(step / 9) * 100}%` }}
             />
           </div>
@@ -174,7 +252,7 @@ export function ClientWizard({
                 animate={reduceMotion ? { opacity: 1 } : { opacity: 1, x: 0 }}
                 exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: -12 }}
                 transition={{ duration: 0.18 }}
-                className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+                className="rounded-2xl border border-border bg-card p-4 shadow-card dark:shadow-card-dark"
               >
                 {step === 1 ? (
                   <Step1 register={register} bioOpen={bioOpen} setBioOpen={setBioOpen} />
@@ -190,29 +268,27 @@ export function ClientWizard({
               </motion.div>
             </AnimatePresence>
 
-            {formState.errors.full_name && step === 1 ? (
-              <p className="mt-2 text-sm text-red-600">{formState.errors.full_name.message}</p>
-            ) : null}
-            {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
-
             <div className="mt-6 flex flex-wrap gap-3">
               <button
                 type="button"
                 onClick={prev}
                 disabled={step === 1}
-                className="rounded-lg border border-slate-300 px-4 py-2 text-sm disabled:opacity-40"
+                className="rounded-lg border border-border bg-card px-4 py-2 text-sm text-foreground shadow-sm disabled:opacity-40"
               >
                 Atrás
               </button>
               {step < 9 ? (
-                <button type="submit" className="rounded-lg bg-brand-700 px-4 py-2 text-sm text-white">
+                <button
+                  type="submit"
+                  className="rounded-lg bg-brand-700 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand-800 dark:bg-brand-600 dark:hover:bg-brand-500"
+                >
                   Siguiente
                 </button>
               ) : (
                 <button
                   type="submit"
                   disabled={saving}
-                  className="rounded-lg bg-brand-700 px-4 py-2 text-sm text-white disabled:opacity-60"
+                  className="rounded-lg bg-brand-700 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand-800 disabled:opacity-60 dark:bg-brand-600 dark:hover:bg-brand-500"
                 >
                   {saving ? 'Guardando…' : 'Confirmar y guardar'}
                 </button>
@@ -241,55 +317,55 @@ function Step1({
     <div className="grid gap-4 sm:grid-cols-2">
       <label className="sm:col-span-2 flex flex-col gap-1 text-sm">
         <span>Nombre completo *</span>
-        <input className="rounded-lg border border-slate-300 px-3 py-2" {...register('full_name')} />
+        <Input {...register('full_name')} />
       </label>
       <label className="flex flex-col gap-1 text-sm">
         <span>Email</span>
-        <input type="email" className="rounded-lg border border-slate-300 px-3 py-2" {...register('email')} />
+        <Input type="email" {...register('email')} />
       </label>
       <label className="flex flex-col gap-1 text-sm">
         <span>Teléfono</span>
-        <input className="rounded-lg border border-slate-300 px-3 py-2" {...register('phone')} />
+        <Input {...register('phone')} />
       </label>
       <label className="flex flex-col gap-1 text-sm">
         <span>Edad</span>
-        <input type="number" className="rounded-lg border border-slate-300 px-3 py-2" {...register('age')} />
+        <Input type="number" {...register('age')} />
       </label>
       <label className="flex flex-col gap-1 text-sm">
         <span>Sexo</span>
-        <select className="rounded-lg border border-slate-300 px-3 py-2" {...register('sex')}>
+        <Select {...register('sex')}>
           <option value="">—</option>
           <option value="female">Femenino</option>
           <option value="male">Masculino</option>
           <option value="other">Otro</option>
           <option value="unknown">Prefiero no indicar</option>
-        </select>
+        </Select>
       </label>
       <label className="flex flex-col gap-1 text-sm">
         <span>Peso actual (kg)</span>
-        <input type="number" step="0.1" className="rounded-lg border border-slate-300 px-3 py-2" {...register('weight_kg')} />
+        <Input type="number" step="0.1" {...register('weight_kg')} />
       </label>
       <label className="flex flex-col gap-1 text-sm">
         <span>Estatura (cm)</span>
-        <input type="number" step="0.1" className="rounded-lg border border-slate-300 px-3 py-2" {...register('height_cm')} />
+        <Input type="number" step="0.1" {...register('height_cm')} />
       </label>
       <label className="flex flex-col gap-1 text-sm">
         <span>% grasa (opcional)</span>
-        <input type="number" step="0.1" className="rounded-lg border border-slate-300 px-3 py-2" {...register('body_fat_pct')} />
+        <Input type="number" step="0.1" {...register('body_fat_pct')} />
       </label>
       <label className="flex flex-col gap-1 text-sm">
         <span>Cintura/abdomen (cm)</span>
-        <input type="number" step="0.1" className="rounded-lg border border-slate-300 px-3 py-2" {...register('waist_cm')} />
+        <Input type="number" step="0.1" {...register('waist_cm')} />
       </label>
       <label className="flex flex-col gap-1 text-sm">
         <span>Peso meta (kg)</span>
-        <input type="number" step="0.1" className="rounded-lg border border-slate-300 px-3 py-2" {...register('goal_weight_kg')} />
+        <Input type="number" step="0.1" {...register('goal_weight_kg')} />
       </label>
 
       <div className="sm:col-span-2">
         <button
           type="button"
-          className="flex w-full items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-left text-sm font-medium"
+          className="flex w-full items-center justify-between rounded-lg border border-border bg-muted/50 px-3 py-2 text-left text-sm font-medium text-foreground"
           onClick={() => setBioOpen(!bioOpen)}
           aria-expanded={bioOpen}
         >
@@ -303,23 +379,23 @@ function Step1({
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <label className="flex flex-col gap-1 text-xs">
               Fecha medición
-              <input type="date" className="rounded border border-slate-300 px-2 py-1" {...register('bioimpedance_report.measured_at')} />
+              <Input type="date" className="py-1 text-xs" {...register('bioimpedance_report.measured_at')} />
             </label>
             <label className="flex flex-col gap-1 text-xs">
               Peso informe
-              <input type="number" step="0.1" className="rounded border border-slate-300 px-2 py-1" {...register('bioimpedance_report.weight')} />
+              <Input type="number" step="0.1" className="py-1 text-xs" {...register('bioimpedance_report.weight')} />
             </label>
             <label className="flex flex-col gap-1 text-xs">
               % grasa informe
-              <input type="number" step="0.1" className="rounded border border-slate-300 px-2 py-1" {...register('bioimpedance_report.body_fat_pct')} />
+              <Input type="number" step="0.1" className="py-1 text-xs" {...register('bioimpedance_report.body_fat_pct')} />
             </label>
             <label className="flex flex-col gap-1 text-xs">
               TMB informe
-              <input type="number" className="rounded border border-slate-300 px-2 py-1" {...register('bioimpedance_report.basal_metabolic_rate')} />
+              <Input type="number" className="py-1 text-xs" {...register('bioimpedance_report.basal_metabolic_rate')} />
             </label>
             <label className="sm:col-span-2 flex flex-col gap-1 text-xs">
               Notas / texto libre del informe
-              <textarea className="rounded border border-slate-300 px-2 py-1" rows={2} {...register('bioimpedance_report.obesity_assessment')} />
+              <Textarea className="py-1 text-xs" rows={2} {...register('bioimpedance_report.obesity_assessment')} />
             </label>
           </div>
         ) : null}
@@ -333,15 +409,15 @@ function Step2({ register }: { register: ReturnType<typeof useForm<CreateClientB
     <div className="grid gap-4">
       <label className="flex flex-col gap-1 text-sm">
         ¿Qué deseas lograr?
-        <textarea className="rounded-lg border border-slate-300 px-3 py-2" rows={3} {...register('clinical_profile.step2.goal')} />
+        <Textarea rows={3} {...register('clinical_profile.step2.goal')} />
       </label>
       <label className="flex flex-col gap-1 text-sm">
         ¿En cuánto tiempo?
-        <input className="rounded-lg border border-slate-300 px-3 py-2" {...register('clinical_profile.step2.timeframe')} />
+        <Input {...register('clinical_profile.step2.timeframe')} />
       </label>
       <label className="flex flex-col gap-1 text-sm">
         Dietas previas
-        <textarea className="rounded-lg border border-slate-300 px-3 py-2" rows={3} {...register('clinical_profile.step2.pastDiets')} />
+        <Textarea rows={3} {...register('clinical_profile.step2.pastDiets')} />
       </label>
     </div>
   );
@@ -392,20 +468,20 @@ function Step6({ register }: { register: ReturnType<typeof useForm<CreateClientB
       <Field label="Hora despertar / dormir" {...register('clinical_profile.step6.wakeSleep')} />
       <label className="flex flex-col gap-1 text-sm">
         Trabajo
-        <select className="rounded-lg border border-slate-300 px-3 py-2" {...register('clinical_profile.step6.workType')}>
+        <Select {...register('clinical_profile.step6.workType')}>
           <option value="">—</option>
           <option value="sedentary">Sedentario</option>
           <option value="active">Activo</option>
-        </select>
+        </Select>
       </label>
       <label className="flex flex-col gap-1 text-sm">
         Estrés
-        <select className="rounded-lg border border-slate-300 px-3 py-2" {...register('clinical_profile.step6.stressLevel')}>
+        <Select {...register('clinical_profile.step6.stressLevel')}>
           <option value="">—</option>
           <option value="low">Bajo</option>
           <option value="medium">Medio</option>
           <option value="high">Alto</option>
-        </select>
+        </Select>
       </label>
       <Field label="Calidad del sueño" {...register('clinical_profile.step6.sleepQuality')} />
     </div>
@@ -417,20 +493,20 @@ function Step7({ register }: { register: ReturnType<typeof useForm<CreateClientB
     <div className="grid gap-4 sm:grid-cols-2">
       <label className="flex flex-col gap-1 text-sm sm:col-span-2">
         ¿Realizas ejercicio?
-        <select className="rounded-lg border border-slate-300 px-3 py-2" {...register('clinical_profile.step7.exercises')}>
+        <Select {...register('clinical_profile.step7.exercises')}>
           <option value="">—</option>
           <option value="yes">Sí</option>
           <option value="no">No</option>
-        </select>
+        </Select>
       </label>
       <Field label="Tipo" className="sm:col-span-2" {...register('clinical_profile.step7.exerciseType')} />
       <label className="flex flex-col gap-1 text-sm">
         Días/semana
-        <input type="number" className="rounded-lg border border-slate-300 px-3 py-2" {...register('clinical_profile.step7.frequencyPerWeek')} />
+        <Input type="number" {...register('clinical_profile.step7.frequencyPerWeek')} />
       </label>
       <label className="flex flex-col gap-1 text-sm">
         Duración (min)
-        <input type="number" className="rounded-lg border border-slate-300 px-3 py-2" {...register('clinical_profile.step7.durationMinutes')} />
+        <Input type="number" {...register('clinical_profile.step7.durationMinutes')} />
       </label>
     </div>
   );
@@ -470,7 +546,7 @@ function Field({
   return (
     <label className={`flex flex-col gap-1 text-sm ${className}`}>
       {label}
-      <textarea className="rounded-lg border border-slate-300 px-3 py-2" rows={2} {...textareaProps} />
+      <Textarea rows={2} {...textareaProps} />
     </label>
   );
 }

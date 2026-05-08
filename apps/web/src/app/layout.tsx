@@ -1,5 +1,9 @@
 import type { Metadata, Viewport } from 'next';
+import { Inter } from 'next/font/google';
+import { Providers } from '@/components/Providers';
 import './globals.css';
+
+const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
 
 export const metadata: Metadata = {
   title: 'NutriMax',
@@ -16,7 +20,10 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#15803d',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#15803d' },
+    { media: '(prefers-color-scheme: dark)', color: '#14532d' },
+  ],
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
@@ -24,8 +31,10 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es">
-      <body className="min-h-dvh">{children}</body>
+    <html lang="es" className={inter.variable} suppressHydrationWarning>
+      <body className={`${inter.className} min-h-dvh`}>
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }

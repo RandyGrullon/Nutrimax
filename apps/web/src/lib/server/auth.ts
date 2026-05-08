@@ -22,16 +22,19 @@ export class ApiError extends Error {
 export function requireAuth(req: NextRequest): SupabaseJwtPayload {
   const header = req.headers.get('authorization');
   if (!header?.startsWith('Bearer ')) {
-    throw new ApiError(401, 'Missing Bearer token');
+    throw new ApiError(401, 'Falta el token de autorización. Vuelve a iniciar sesión.');
   }
   const token = header.slice('Bearer '.length).trim();
-  const secret = process.env.SUPABASE_JWT_SECRET;
+  const secret = process.env.SUPABASE_JWT_SECRET?.trim();
   if (!secret) {
-    throw new ApiError(500, 'Server misconfigured: SUPABASE_JWT_SECRET');
+    throw new ApiError(500, 'El servidor no puede validar sesiones. Revisa la configuración de autenticación.');
   }
   try {
-    return jwt.verify(token, secret, { algorithms: ['HS256'] }) as SupabaseJwtPayload;
+    return jwt.verify(token, secret, {
+      algorithms: ['HS256'],
+      clockTolerance: 120,
+    }) as SupabaseJwtPayload;
   } catch {
-    throw new ApiError(401, 'Invalid or expired token');
+    throw new ApiError(401, 'Tu sesión caducó o el token no es válido. Vuelve a iniciar sesión.');
   }
 }

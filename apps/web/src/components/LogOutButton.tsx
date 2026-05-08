@@ -2,13 +2,15 @@
 
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/Button';
 
 export function LogOutButton() {
   const router = useRouter();
   return (
-    <button
+    <Button
       type="button"
-      className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-700"
+      variant="secondary"
+      className="shrink-0 px-3 py-2 text-sm"
       onClick={async () => {
         const supabase = createClient();
         await supabase.auth.signOut();
@@ -17,6 +19,6 @@ export function LogOutButton() {
       }}
     >
       Salir
-    </button>
+    </Button>
   );
 }
