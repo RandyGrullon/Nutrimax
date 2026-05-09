@@ -1,5 +1,5 @@
 import { AppShell } from '@/components/layout/AppShell';
-import { AppShellHeader } from '@/components/layout/AppShellHeader';
+import { AppShellNavLeading, AppShellNavMobile } from '@/components/layout/AppShellHeaderNavParts';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -7,8 +7,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       className="relative flex min-h-dvh flex-col bg-background nb-surface-glow"
       suppressHydrationWarning
     >
-      <AppShellHeader />
-      <AppShell>{children}</AppShell>
+      <AppShell navLeading={<AppShellNavLeading />} navMobile={<AppShellNavMobile />}>
+        {children}
+      </AppShell>
     </div>
   );
 }
