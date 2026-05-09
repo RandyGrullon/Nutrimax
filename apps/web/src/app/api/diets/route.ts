@@ -1,5 +1,6 @@
 import type { NextRequest } from 'next/server';
 import { createDiet, listDiets } from '@/lib/server/diets-server';
+import { revalidateNutrimaxReadCaches } from '@/lib/server/read-cache';
 import { withApiAuth } from '@/lib/server/with-api-auth';
 
 export const runtime = 'nodejs';
@@ -11,6 +12,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   return withApiAuth(req, async () => {
     const body: unknown = await req.json();
-    return createDiet(body);
+    const row = await createDiet(body);
+    revalidateNutrimaxReadCaches();
+    return row;
   });
 }

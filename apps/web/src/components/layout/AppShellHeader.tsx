@@ -1,8 +1,16 @@
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { headers } from 'next/headers';
 import { APP_SHELL_NAV } from '@/config/app-shell-nav';
-import { AppShellHeaderActions } from '@/components/layout/AppShellHeaderActions';
 import { cn } from '@/lib/cn';
+
+/** Carga explícita del boundary cliente evita fallos de chunk (.call) al mezclar RSC + cliente en Webpack. */
+const AppShellHeaderActions = dynamic(() => import('@/components/layout/AppShellHeaderActions'), {
+  ssr: true,
+  loading: () => (
+    <div className="flex h-10 w-[min(100%,11rem)] shrink-0 items-center justify-end gap-2" aria-hidden />
+  ),
+});
 
 /**
  * Cabecera y navegación como Server Component: evita desajustes de hidratación por `usePathname()`

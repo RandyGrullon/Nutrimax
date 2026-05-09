@@ -1,5 +1,6 @@
 import type { NextRequest } from 'next/server';
 import { deleteMealPlan, getMealPlanById, updateMealPlan } from '@/lib/server/meal-plans-server';
+import { revalidateNutrimaxReadCaches } from '@/lib/server/read-cache';
 import { withApiAuth } from '@/lib/server/with-api-auth';
 
 export const runtime = 'nodejs';
@@ -13,11 +14,17 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   const { id } = await ctx.params;
   return withApiAuth(req, async () => {
     const body: unknown = await req.json();
-    return updateMealPlan(id, body);
+    const row = await updateMealPlan(id, body);
+    revalidateNutrimaxReadCaches();
+    return row;
   });
 }
 
 export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
-  return withApiAuth(req, () => deleteMealPlan(id));
+  return withApiAuth(req, async () => {
+    const row = await deleteMealPlan(id);
+    revalidateNutrimaxReadCaches();
+    return row;
+  });
 }

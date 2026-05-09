@@ -1,8 +1,10 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import { CmsListPageHero } from '@/components/cms/CmsListPageHero';
 import { DietLibraryClient, type DietAdminRow } from '@/app/(app)/diets/DietLibraryClient';
 import { HelpInfoButton } from '@/components/ui/HelpInfoButton';
-import { listDiets } from '@/lib/server/diets-server';
+import { PageLoadingSkeleton } from '@/components/ui/PageLoadingSkeleton';
+import { listDietsCachedForRsc } from '@/lib/server/diets-server';
 
 export const metadata: Metadata = {
   title: 'Dietas',
@@ -14,7 +16,7 @@ export const metadata: Metadata = {
   },
 };
 
-function toDietAdminRow(row: Awaited<ReturnType<typeof listDiets>>[number]): DietAdminRow {
+function toDietAdminRow(row: Awaited<ReturnType<typeof listDietsCachedForRsc>>[number]): DietAdminRow {
   return {
     id: row.id,
     name: row.name,
@@ -24,6 +26,11 @@ function toDietAdminRow(row: Awaited<ReturnType<typeof listDiets>>[number]): Die
   };
 }
 
+async function DietsLibrarySection({ openEditDietId }: { openEditDietId: string | null }) {
+  const initialDiets = (await listDietsCachedForRsc()).map(toDietAdminRow);
+  return <DietLibraryClient openEditDietId={openEditDietId} initialDiets={initialDiets} />;
+}
+
 export default async function DietsPage({
   searchParams,
 }: {
@@ -31,7 +38,6 @@ export default async function DietsPage({
 }) {
   const { edit } = await searchParams;
   const openEditDietId = edit?.trim() ? edit.trim() : null;
-  const initialDiets = (await listDiets()).map(toDietAdminRow);
 
   return (
     <div className="min-h-0">
@@ -49,15 +55,17 @@ export default async function DietsPage({
             </p>
             <p>
               <strong className="text-foreground">Nueva dieta</strong> abre un panel a la derecha para crearla.{' '}
-              <strong className="text-foreground">Editar</strong> cambia los datos; <strong className="text-foreground">Eliminar</strong>{' '}
-              solo funciona si ese plan no está ligado a pacientes.
+              <strong className="text-foreground">Editar</strong> cambia los datos;{' '}
+              <strong className="text-foreground">Eliminar</strong> solo funciona si ese plan no está ligado a pacientes.
             </p>
             <p className="text-xs">La búsqueda filtra por nombre o texto en la descripción.</p>
           </HelpInfoButton>
         }
       />
-      
-      <DietLibraryClient openEditDietId={openEditDietId} initialDiets={initialDiets} />
+
+      <Suspense fallback={<PageLoadingSkeleton label="Cargando dietas…" className="mt-4 px-4" />}>
+        <DietsLibrarySection openEditDietId={openEditDietId} />
+      </Suspense>
     </div>
   );
 }

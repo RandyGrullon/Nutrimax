@@ -47,9 +47,10 @@ const nextConfig: NextConfig = {
      * Cache en el cliente para navegaciones repetidas (volver a una vista reciente).
      * Las APIs siguen validando sesión; datos muy sensibles pueden seguir usando revalidate/reload donde haga falta.
      */
+    /** En producción (p. ej. Vercel) las revisitas al mismo segmento reutilizan el RSC en cliente más tiempo. */
     staleTimes: {
-      dynamic: 30,
-      static: 300,
+      dynamic: 120,
+      static: 600,
     },
   },
 };

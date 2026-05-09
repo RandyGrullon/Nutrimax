@@ -1,5 +1,7 @@
+import { unstable_cache } from 'next/cache';
 import type { DashboardRecentClient, DashboardStats } from '@/lib/dashboard-stats-types';
 import { dbQuery, dbQueryOne } from '@/lib/server/db';
+import { NUTRIMAX_READ_CACHE_TAG } from '@/lib/server/read-cache';
 
 export type { DashboardStats, DashboardRecentClient };
 
@@ -17,8 +19,7 @@ function toIso(d: unknown): string {
   return s.length > 0 ? s : new Date(0).toISOString();
 }
 
-/** Datos agregados y recientes para el panel de inicio (conexión DB del servidor). */
-export async function getDashboardHomeData(): Promise<{
+async function fetchDashboardHomeDataUncached(): Promise<{
   stats: DashboardStats;
   recentClients: DashboardRecentClient[];
 }> {
@@ -55,3 +56,12 @@ export async function getDashboardHomeData(): Promise<{
     return { stats: emptyStats, recentClients: [] };
   }
 }
+
+/**
+ * Datos del panel de inicio cacheados en el Data Cache de Next (ideal para Vercel / region warm).
+ * Se invalida con `revalidateNutrimaxReadCaches()` tras mutaciones.
+ */
+export const getDashboardHomeData = unstable_cache(fetchDashboardHomeDataUncached, ['nutrimax-dashboard-home'], {
+  revalidate: 180,
+  tags: [NUTRIMAX_READ_CACHE_TAG],
+});

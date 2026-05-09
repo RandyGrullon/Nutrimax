@@ -1,8 +1,10 @@
+import { unstable_cache } from 'next/cache';
 import { cache } from 'react';
 import { createDietBodySchema, updateDietBodySchema } from '@nutrimax/shared';
 import { ApiError } from '@/lib/server/auth';
 import { assertMealPlanCompatibleWithDiet } from '@/lib/server/diet-meal-plan-link';
 import { dbQuery, dbQueryOne } from '@/lib/server/db';
+import { NUTRIMAX_READ_CACHE_TAG } from '@/lib/server/read-cache';
 import { getMealPlanById, resolveMealPlanForDisplay, type ResolvedMealPlan } from '@/lib/server/meal-plans-server';
 
 export interface DietRow {
@@ -23,8 +25,7 @@ export type DietDetailRow = DietRow & {
   meal_plan: ResolvedMealPlan | null;
 };
 
-/** Una lectura por request si varias partes del árbol RSC llaman al listado. */
-export const listDiets = cache(async (): Promise<DietListRow[]> => {
+async function fetchDietsListUncached(): Promise<DietListRow[]> {
   return dbQuery<DietListRow>(
     `SELECT d.id, d.created_at, d.updated_at, d.name, d.description, d.plan, d.meal_plan_id,
             mp.name AS meal_plan_name
@@ -32,6 +33,15 @@ export const listDiets = cache(async (): Promise<DietListRow[]> => {
        LEFT JOIN meal_plans mp ON mp.id = d.meal_plan_id
        ORDER BY d.updated_at DESC`,
   );
+}
+
+/** Una lectura por request si varias partes del árbol RSC llaman al listado (sin Data Cache). */
+export const listDiets = cache(fetchDietsListUncached);
+
+/** Biblioteca de dietas para RSC con Data Cache (Vercel). */
+export const listDietsCachedForRsc = unstable_cache(fetchDietsListUncached, ['nutrimax-diets-list'], {
+  revalidate: 180,
+  tags: [NUTRIMAX_READ_CACHE_TAG],
 });
 
 async function fetchDietJoinRow(id: string): Promise<

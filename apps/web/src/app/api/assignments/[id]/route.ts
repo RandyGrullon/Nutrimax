@@ -1,7 +1,8 @@
 import type { NextRequest } from 'next/server';
 import { updateAssignment } from '@/lib/server/assignments-server';
-import { withApiAuth } from '@/lib/server/with-api-auth';
 import { ApiError } from '@/lib/server/auth';
+import { revalidateNutrimaxReadCaches } from '@/lib/server/read-cache';
+import { withApiAuth } from '@/lib/server/with-api-auth';
 
 export const runtime = 'nodejs';
 
@@ -30,6 +31,8 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     if (notes === undefined && starts_on === undefined) {
       throw new ApiError(400, 'Envía notas o fecha de inicio (pueden ser null para borrar).');
     }
-    return updateAssignment(id, { notes, starts_on });
+    const row = await updateAssignment(id, { notes, starts_on });
+    revalidateNutrimaxReadCaches();
+    return row;
   });
 }

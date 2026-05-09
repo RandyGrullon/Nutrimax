@@ -1,3 +1,4 @@
+import { unstable_cache } from 'next/cache';
 import { cache } from 'react';
 import {
   createClientBodySchema,
@@ -7,6 +8,7 @@ import {
 } from '@nutrimax/shared';
 import { ApiError } from '@/lib/server/auth';
 import { dbQuery, dbQueryOne } from '@/lib/server/db';
+import { NUTRIMAX_READ_CACHE_TAG } from '@/lib/server/read-cache';
 
 export interface ClientRow {
   id: string;
@@ -40,9 +42,19 @@ function computeDerived(body: CreateClientBody): Record<string, unknown> {
   return deriveAllMetrics(input, body.clinical_profile?.step2?.goal) as unknown as Record<string, unknown>;
 }
 
-/** Una lectura por request si varias partes del árbol RSC llaman al listado. */
-export const listClients = cache(async (): Promise<ClientRow[]> => {
+async function fetchAllClientsUncached(): Promise<ClientRow[]> {
   return dbQuery<ClientRow>(`SELECT * FROM clients ORDER BY updated_at DESC`);
+}
+
+/** Una lectura por request si varias partes del árbol RSC llaman al listado (sin Data Cache). */
+export const listClients = cache(fetchAllClientsUncached);
+
+/**
+ * Listado para páginas RSC cacheado entre peticiones (Vercel). La API GET sigue usando `listClients`.
+ */
+export const listClientsCachedForRsc = unstable_cache(fetchAllClientsUncached, ['nutrimax-clients-list'], {
+  revalidate: 180,
+  tags: [NUTRIMAX_READ_CACHE_TAG],
 });
 
 /** Una lectura por request (RSC/API): evita repetir SELECT cuando timeline/asignaciones/progreso validan el mismo id. */
