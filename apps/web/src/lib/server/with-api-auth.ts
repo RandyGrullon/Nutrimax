@@ -25,6 +25,20 @@ export async function withApiAuth(
       );
     }
     console.error(e);
+    const errno = e as NodeJS.ErrnoException & { hostname?: string };
+    if (
+      e instanceof Error &&
+      errno.code === 'ENOTFOUND' &&
+      /db\.[^.]+\.supabase\.co/i.test(errno.hostname ?? e.message)
+    ) {
+      return NextResponse.json(
+        {
+          message:
+            'No se resolvió el host de la base de datos (ENOTFOUND). En Vercel configura DATABASE_URL con el pooler «Transaction» de Supabase (…pooler.supabase.com:6543), no el host db.PROJECT.supabase.co.',
+        },
+        { status: 503 },
+      );
+    }
     const isDev = process.env.NODE_ENV === 'development';
     const payload: { message: string; detail?: string } = { message: 'Internal server error' };
     if (isDev && e instanceof Error && e.message) {
