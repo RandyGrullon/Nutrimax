@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import { CmsListPageHero } from '@/components/cms/CmsListPageHero';
-import { DietLibraryClient } from '@/app/(app)/diets/DietLibraryClient';
+import { DietLibraryClient, type DietAdminRow } from '@/app/(app)/diets/DietLibraryClient';
 import { HelpInfoButton } from '@/components/ui/HelpInfoButton';
+import { listDiets } from '@/lib/server/diets-server';
 
 export const metadata: Metadata = {
   title: 'Dietas',
@@ -13,6 +14,15 @@ export const metadata: Metadata = {
   },
 };
 
+function toDietAdminRow(row: Awaited<ReturnType<typeof listDiets>>[number]): DietAdminRow {
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description,
+    updated_at: row.updated_at instanceof Date ? row.updated_at.toISOString() : String(row.updated_at),
+  };
+}
+
 export default async function DietsPage({
   searchParams,
 }: {
@@ -20,6 +30,7 @@ export default async function DietsPage({
 }) {
   const { edit } = await searchParams;
   const openEditDietId = edit?.trim() ? edit.trim() : null;
+  const initialDiets = (await listDiets()).map(toDietAdminRow);
 
   return (
     <div className="min-h-0">
@@ -45,7 +56,7 @@ export default async function DietsPage({
         }
       />
       
-      <DietLibraryClient openEditDietId={openEditDietId} />
+      <DietLibraryClient openEditDietId={openEditDietId} initialDiets={initialDiets} />
     </div>
   );
 }

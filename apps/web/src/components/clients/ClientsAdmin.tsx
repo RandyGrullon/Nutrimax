@@ -9,7 +9,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { Input } from '@/components/ui/Input';
 import { HelpInfoButton } from '@/components/ui/HelpInfoButton';
 import { Skeleton } from '@/components/ui/Skeleton';
-import { parseApiError, showErrorToast, showInfoToast, showSuccessToast } from '@/lib/errors';
+import { parseApiError, showErrorToast, showSuccessToast } from '@/lib/errors';
 import { apiFetch } from '@/lib/api';
 import { ensureArray } from '@/lib/ensure-array';
 import { cn } from '@/lib/cn';
@@ -32,11 +32,15 @@ function formatUpdated(iso: string): string {
 type ClientsAdminProps = {
   /** Oculta el bloque de título duplicado cuando la página ya muestra `CmsListPageHero`. */
   embedded?: boolean;
+  /** Si viene del RSC, primera pintura sin esperar a `/api/clients`. */
+  initialRows?: ClientAdminRow[];
 };
 
-export function ClientsAdmin({ embedded = false }: ClientsAdminProps) {
-  const [rows, setRows] = useState<ClientAdminRow[] | null>(null);
-  const [loading, setLoading] = useState(true);
+export function ClientsAdmin({ embedded = false, initialRows }: ClientsAdminProps) {
+  const [rows, setRows] = useState<ClientAdminRow[] | null>(() =>
+    initialRows !== undefined ? initialRows : null,
+  );
+  const [loading, setLoading] = useState(initialRows === undefined);
   const [query, setQuery] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<ClientAdminRow | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -53,9 +57,6 @@ export function ClientsAdmin({ embedded = false }: ClientsAdminProps) {
       const raw: unknown = await res.json();
       const list = ensureArray<ClientAdminRow>(raw);
       setRows(list);
-      if (list.length === 0) {
-        showInfoToast('No hay pacientes registrados. Puedes crear uno nuevo cuando quieras.');
-      }
     } catch {
       showErrorToast('No pudimos cargar la lista de pacientes.');
       setRows([]);
@@ -65,8 +66,9 @@ export function ClientsAdmin({ embedded = false }: ClientsAdminProps) {
   }, []);
 
   useEffect(() => {
+    if (initialRows !== undefined) return;
     void load();
-  }, [load]);
+  }, [initialRows, load]);
 
   const filtered = useMemo(() => {
     const list = rows ?? [];
@@ -211,6 +213,7 @@ export function ClientsAdmin({ embedded = false }: ClientsAdminProps) {
                   >
                     <td className="px-4 py-3">
                       <Link
+                        prefetch
                         href={`/clients/${row.id}`}
                         className="font-medium text-foreground underline-offset-2 hover:text-brand-700 hover:underline dark:hover:text-brand-400"
                       >

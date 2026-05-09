@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
-import { ClientsAdmin } from '@/components/clients/ClientsAdmin';
+import { ClientsAdmin, type ClientAdminRow } from '@/components/clients/ClientsAdmin';
 import { CmsListPageHero } from '@/components/cms/CmsListPageHero';
 import { HelpInfoButton } from '@/components/ui/HelpInfoButton';
+import { listClients } from '@/lib/server/clients-server';
 
 export const metadata: Metadata = {
   title: 'Pacientes',
@@ -13,7 +14,18 @@ export const metadata: Metadata = {
   },
 };
 
-export default function ClientsPage() {
+function toClientAdminRow(row: Awaited<ReturnType<typeof listClients>>[number]): ClientAdminRow {
+  return {
+    id: row.id,
+    full_name: row.full_name,
+    email: row.email,
+    updated_at: row.updated_at instanceof Date ? row.updated_at.toISOString() : String(row.updated_at),
+  };
+}
+
+export default async function ClientsPage() {
+  const initialRows = (await listClients()).map(toClientAdminRow);
+
   return (
     <div className="min-h-0">
       <CmsListPageHero
@@ -39,7 +51,7 @@ export default function ClientsPage() {
           </HelpInfoButton>
         }
       />
-      <ClientsAdmin embedded />
+      <ClientsAdmin embedded initialRows={initialRows} />
     </div>
   );
 }

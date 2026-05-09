@@ -19,11 +19,11 @@ import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
 import { createDietBodySchema, defaultDietPlan, normalizeDietPlan, type DietPlan } from '@nutrimax/shared';
 import { DietPlanFormFields } from '@/components/diets/DietPlanFormFields';
-import { parseApiError, showErrorToast, showInfoToast, showSuccessToast } from '@/lib/errors';
+import { parseApiError, showErrorToast, showSuccessToast } from '@/lib/errors';
 import { apiFetch, apiJsonArray } from '@/lib/api';
 import { cn } from '@/lib/cn';
 
-type DietAdminRow = {
+export type DietAdminRow = {
   id: string;
   name: string;
   description: string | null;
@@ -47,11 +47,13 @@ type DietsAdminProps = {
   embedded?: boolean;
   /** Desde otras pantallas: abrir edición de esta dieta al tener filas cargadas. */
   openEditDietId?: string | null;
+  /** Datos del RSC para evitar el primer fetch a `/api/diets`. */
+  initialRows?: DietAdminRow[];
 };
 
-function DietsAdmin({ embedded = false, openEditDietId = null }: DietsAdminProps) {
-  const [rows, setRows] = useState<DietAdminRow[]>([]);
-  const [loading, setLoading] = useState(true);
+function DietsAdmin({ embedded = false, openEditDietId = null, initialRows }: DietsAdminProps) {
+  const [rows, setRows] = useState<DietAdminRow[]>(() => initialRows ?? []);
+  const [loading, setLoading] = useState(initialRows === undefined);
   const [query, setQuery] = useState('');
   const [panel, setPanel] = useState<PanelMode>('closed');
   const [editId, setEditId] = useState<string | null>(null);
@@ -66,15 +68,13 @@ function DietsAdmin({ embedded = false, openEditDietId = null }: DietsAdminProps
     setLoading(true);
     const data = await apiJsonArray<DietAdminRow>('/diets');
     setRows(data);
-    if (data.length === 0) {
-      showInfoToast('La biblioteca de dietas está vacía. Crea la primera con «Nueva dieta».');
-    }
     setLoading(false);
   }, []);
 
   useEffect(() => {
+    if (initialRows !== undefined) return;
     void load();
-  }, [load]);
+  }, [initialRows, load]);
 
   const openEdit = useCallback(async (row: DietAdminRow) => {
     setEditId(row.id);
@@ -424,8 +424,10 @@ function DietsAdmin({ embedded = false, openEditDietId = null }: DietsAdminProps
 
 type DietLibraryClientProps = {
   openEditDietId?: string | null;
+  /** Si viene del RSC, primera pintura sin esperar a `/api/diets`. */
+  initialDiets?: DietAdminRow[];
 };
 
-export function DietLibraryClient({ openEditDietId = null }: DietLibraryClientProps) {
-  return <DietsAdmin embedded openEditDietId={openEditDietId} />;
+export function DietLibraryClient({ openEditDietId = null, initialDiets }: DietLibraryClientProps) {
+  return <DietsAdmin embedded openEditDietId={openEditDietId} initialRows={initialDiets} />;
 }

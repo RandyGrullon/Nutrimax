@@ -40,9 +40,10 @@ function computeDerived(body: CreateClientBody): Record<string, unknown> {
   return deriveAllMetrics(input, body.clinical_profile?.step2?.goal) as unknown as Record<string, unknown>;
 }
 
-export async function listClients(): Promise<ClientRow[]> {
+/** Una lectura por request si varias partes del árbol RSC llaman al listado. */
+export const listClients = cache(async (): Promise<ClientRow[]> => {
   return dbQuery<ClientRow>(`SELECT * FROM clients ORDER BY updated_at DESC`);
-}
+});
 
 /** Una lectura por request (RSC/API): evita repetir SELECT cuando timeline/asignaciones/progreso validan el mismo id. */
 export const getClientById = cache(async (id: string): Promise<ClientRow> => {

@@ -12,9 +12,10 @@ export interface DietRow {
   plan: unknown;
 }
 
-export async function listDiets(): Promise<DietRow[]> {
+/** Una lectura por request si varias partes del árbol RSC llaman al listado. */
+export const listDiets = cache(async (): Promise<DietRow[]> => {
   return dbQuery<DietRow>(`SELECT * FROM diets ORDER BY updated_at DESC`);
-}
+});
 
 /** Una lectura por request: `generateMetadata` y la página comparten la misma fila. */
 export const getDietById = cache(async (id: string): Promise<DietRow> => {
