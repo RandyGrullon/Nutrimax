@@ -10,5 +10,7 @@ export default async function HomePage() {
 
   const stats = await getDashboardStats();
 
-  return <HomeDashboard user={user} stats={stats} />;
+  const userProps = user ? { email: user.email ?? null } : null;
+
+  return <HomeDashboard user={userProps} stats={stats} />;
 }

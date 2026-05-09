@@ -5,7 +5,34 @@ const withPWA = withPWAInit({
   dest: 'public',
   disable: process.env.NODE_ENV === 'development',
   register: true,
-  // Datos clínicos viven en Nest/Supabase (origen distinto): no añadir runtime cache genérico para esas URLs.
+  /** Sustituye la entrada por defecto «apis» (NetworkFirst + caché) por NetworkOnly con el mismo cacheName. */
+  extendDefaultRuntimeCaching: true,
+  workboxOptions: {
+    runtimeCaching: [
+      {
+        urlPattern: ({ url, sameOrigin }: { url: URL; sameOrigin: boolean }) =>
+          sameOrigin &&
+          url.pathname.startsWith('/api/') &&
+          !url.pathname.startsWith('/api/auth/callback'),
+        handler: 'NetworkOnly',
+        method: 'GET',
+        options: {
+          cacheName: 'apis',
+        },
+      },
+      {
+        urlPattern: ({ url, sameOrigin, request }: { url: URL; sameOrigin: boolean; request: Request }) =>
+          sameOrigin &&
+          url.pathname.startsWith('/api/') &&
+          !url.pathname.startsWith('/api/auth/callback') &&
+          request.method !== 'GET',
+        handler: 'NetworkOnly',
+        options: {
+          cacheName: 'apis-mutations',
+        },
+      },
+    ],
+  },
 });
 
 const nextConfig: NextConfig = {

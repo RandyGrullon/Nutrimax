@@ -22,7 +22,3 @@ pnpm build
 - [Conexión Supabase](docs/SUPABASE_CONEXION.md)
 - [Vercel y producción](docs/VERCEL_Y_PRODUCCION.md)
 - SQL inicial: [`supabase/migrations/001_nutrimax_initial.sql`](supabase/migrations/001_nutrimax_initial.sql)
-
-## Legado
-
-`apps/api` (Nest) quedó fuera del workspace; ver [`apps/api/README.md`](apps/api/README.md).

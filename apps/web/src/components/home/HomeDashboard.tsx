@@ -8,11 +8,10 @@ import {
   UserPlus,
   UtensilsCrossed,
 } from 'lucide-react';
-import type { DashboardStats } from '@/lib/server/dashboard-stats';
-import { Button } from '@/components/ui/Button';
+import type { DashboardStats } from '@/lib/dashboard-stats-types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
-import { PwaInstallButton } from '@/components/pwa/PwaInstallButton';
 import { HelpInfoButton } from '@/components/ui/HelpInfoButton';
+import { HomeDashboardHeroSlot } from '@/components/home/HomeDashboardHeroSlot';
 
 function StatCard({
   label,
@@ -77,13 +76,7 @@ export function HomeDashboard({
               </p>
             ) : null}
           </div>
-          <div className="flex shrink-0 flex-col gap-2 self-start sm:flex-row sm:items-center">
-            <PwaInstallButton variant="secondary" className="w-full sm:w-auto" />
-            <Button href="/clients/new" variant="primary" className="gap-2">
-              Nuevo paciente
-              <ArrowRight className="h-4 w-4" aria-hidden />
-            </Button>
-          </div>
+          <HomeDashboardHeroSlot />
         </div>
 
         <div className="mt-8 grid gap-3 sm:grid-cols-3">

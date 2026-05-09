@@ -3,13 +3,6 @@ import { ensureArray } from '@/lib/ensure-array';
 import { toApiPath } from '@/lib/api-path';
 import { withRequestLoading } from '@/lib/request-loading';
 
-/** Si defines NEXT_PUBLIC_API_URL, las peticiones van a ese host (Nest u otro). Si no, usan /api en el mismo origen (Vercel). */
-function externalApiBase(): string | null {
-  const b = process.env.NEXT_PUBLIC_API_URL?.trim();
-  if (b && b.length > 0) return b.replace(/\/$/, '');
-  return null;
-}
-
 export async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
   return withRequestLoading(async () => {
     const supabase = createClient();
@@ -25,8 +18,7 @@ export async function apiFetch(path: string, init: RequestInit = {}): Promise<Re
       const token = await accessToken();
       const headers = new Headers(baseHeaders);
       if (token) headers.set('Authorization', `Bearer ${token}`);
-      const ext = externalApiBase();
-      const url = ext ? `${ext}${path.startsWith('/') ? path : `/${path}`}` : toApiPath(path);
+      const url = toApiPath(path);
       return fetch(url, { ...init, headers });
     }
 

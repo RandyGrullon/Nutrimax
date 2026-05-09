@@ -53,7 +53,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               })}
             </nav>
           </div>
-          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             <PwaInstallButton variant="secondary" compact />
             <ThemeToggle />
             <LogOutButton />

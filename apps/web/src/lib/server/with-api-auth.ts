@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ZodError } from 'zod';
 import { ApiError, requireAuth } from '@/lib/server/auth';
+import { sanitizeApiDevDetail } from '@/lib/server/sanitize-api-dev-error';
 
 export async function withApiAuth(
   req: NextRequest,
@@ -24,6 +25,11 @@ export async function withApiAuth(
       );
     }
     console.error(e);
-    return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
+    const isDev = process.env.NODE_ENV === 'development';
+    const payload: { message: string; detail?: string } = { message: 'Internal server error' };
+    if (isDev && e instanceof Error && e.message) {
+      payload.detail = sanitizeApiDevDetail(e.message);
+    }
+    return NextResponse.json(payload, { status: 500 });
   }
 }

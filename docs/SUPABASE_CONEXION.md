@@ -1,6 +1,6 @@
 # Conectar NutriMax con Supabase (paso a paso)
 
-Esta guía enlaza **Supabase** (Postgres + Auth) con el monorepo: **Next.js** (`apps/web`) y **NestJS** (`apps/api`).
+Esta guía enlaza **Supabase** (Postgres + Auth) con **Next.js** (`apps/web`): la UI y las rutas **`/api/*`** viven en el mismo proyecto.
 
 > **Importante:** no subas archivos `.env` ni `.env.local` con secretos a Git. Usa solo los `.env.example` como plantilla.
 
@@ -37,7 +37,7 @@ Esta guía enlaza **Supabase** (Postgres + Auth) con el monorepo: **Next.js** (`
 
 Ve a **Project Settings** (engranaje) y anota lo siguiente.
 
-### 3.1 API (para Next y validación JWT en Nest)
+### 3.1 API (Next.js + Auth)
 
 Ruta: **Settings → API**
 
@@ -45,19 +45,17 @@ Ruta: **Settings → API**
 |-------------------|-------------------------|
 | **Project URL** | `NEXT_PUBLIC_SUPABASE_URL` y `SUPABASE_URL` |
 | **anon public** (clave pública) | `NEXT_PUBLIC_SUPABASE_ANON_KEY` |
-| **service_role** (secreto, solo servidor) | `SUPABASE_SERVICE_ROLE_KEY` |
-| **JWT Secret** (sección *JWT Settings*) | `SUPABASE_JWT_SECRET` |
 
 - La clave **anon** puede ir en el front (Next) porque el navegador la usa con Supabase Auth.
-- La clave **service_role** y el **JWT Secret** son **solo para backend** (`apps/api`). No los pongas en `NEXT_PUBLIC_*` ni en código del cliente.
+- No pongas claves **service_role** ni secretos en `NEXT_PUBLIC_*` ni en código del cliente.
 
-### 3.2 Base de datos (para Nest)
+### 3.2 Base de datos (Route Handlers `/api`)
 
 Ruta: **Settings → Database**
 
 1. En **Connection string**, elige **URI** (o la cadena que indique conexión directa a Postgres, puerto `5432`).
 2. Sustituye `[YOUR-PASSWORD]` por la contraseña del usuario `postgres` que definiste al crear el proyecto.
-3. Esa cadena completa es tu **`DATABASE_URL`**.
+3. Esa cadena completa es tu **`DATABASE_URL`** (alternativa recomendada en Vercel: pooler transaccional, puerto `6543`).
 
 Ejemplo de forma (los valores reales son los de tu proyecto):
 
@@ -69,7 +67,7 @@ postgresql://postgres:TU_PASSWORD@db.xxxxxxxxxxxxx.supabase.co:5432/postgres
 
 ## 4. Configurar variables en el repositorio
 
-### 4.1 Next.js — `apps/web/.env.local`
+### Next.js — `apps/web/.env.local`
 
 Crea el archivo **`apps/web/.env.local`** (no está en Git). Puedes partir de [`apps/web/.env.example`](../apps/web/.env.example):
 
@@ -77,38 +75,34 @@ Crea el archivo **`apps/web/.env.local`** (no está en Git). Puedes partir de [`
 NEXT_PUBLIC_SUPABASE_URL=https://TU_REF.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
-# API integrada en el mismo Next (/api). Opcional si usas Nest u otro host:
-# NEXT_PUBLIC_API_URL=http://localhost:3001
-
-# Solo servidor — necesarias para Route Handlers /api (Postgres + validación JWT)
+# Solo servidor — necesarias para Route Handlers /api (Postgres)
 SUPABASE_DB_PASSWORD=TU_PASSWORD_POSTGRES
 SUPABASE_URL=https://TU_REF.supabase.co
-SUPABASE_JWT_SECRET=TU_JWT_SECRET
+
+# Opcional pero recomendado si falla la conexión (500 en /api): URI completa del pooler (puerto 6543)
+# DATABASE_URL=postgresql://postgres.[REF]:[PASSWORD]@aws-0-....pooler.supabase.com:6543/postgres
 ```
 
-- Sin `NEXT_PUBLIC_API_URL`, el front llama a **`/api`** en el mismo origen (recomendado en Vercel).
+Si **`GET /api/...`** devuelve **500** en local, define **`DATABASE_URL`** con la cadena del **pooler** del dashboard (véase también [`apps/web/.env.example`](../apps/web/.env.example)). Con `NODE_ENV=development`, la respuesta JSON puede incluir **`detail`** con un mensaje de error sanitizado (sin URI completa) para diagnosticar.
 
-### 4.2 API en Nest (opcional, legado)
-
-Si vuelves a usar el proyecto Nest en `apps/api`, las variables eran las mismas de Postgres y JWT; hoy la app está pensada para **solo Next** — ver [`VERCEL_Y_PRODUCCION.md`](./VERCEL_Y_PRODUCCION.md).
+El front llama siempre a **`/api`** en el mismo origen (Next Route Handlers). Ver [`VERCEL_Y_PRODUCCION.md`](./VERCEL_Y_PRODUCCION.md).
 
 ---
 
 ## 5. Auth: crear usuario y probar sesión
 
 1. En Supabase: **Authentication → Users → Add user** (o regístrate desde la pantalla `/login` de la app si tienes el registro habilitado).
-2. Arranca la API y el front:
+2. Arranca la app:
 
    ```bash
    pnpm install
-   pnpm --filter @nutrimax/api dev
-   pnpm --filter @nutrimax/web dev
+   pnpm dev
    ```
 
 3. Abre `http://localhost:3000/login`, inicia sesión con el usuario creado.
-4. El middleware de Next redirige a login si no hay sesión; las rutas protegidas llaman a Nest con el **Bearer token** de Supabase. Nest valida el JWT con **`SUPABASE_JWT_SECRET`**.
+4. El middleware de Next redirige a login si no hay sesión; las rutas **`/api/*`** validan la sesión con **Supabase Auth** (`getUser` en servidor), usando cookies o el header `Authorization: Bearer <access_token>`.
 
-Si Nest responde **401 Unauthorized**, revisa que el JWT Secret en `apps/api/.env` coincida exactamente con el del dashboard y que el header `Authorization: Bearer <access_token>` llegue desde el front (sesión activa).
+Si obtienes **401 Unauthorized** en `/api`, revisa que haya sesión activa (cookies o token) y que `NEXT_PUBLIC_SUPABASE_*` coincida con el proyecto correcto.
 
 ---
 
@@ -116,9 +110,7 @@ Si Nest responde **401 Unauthorized**, revisa que el JWT Secret en `apps/api/.en
 
 1. Crea un **proyecto Supabase de producción** (o usa el mismo solo para pruebas; en producción real suele ser otro proyecto).
 2. Vuelve a ejecutar la migración SQL en ese proyecto.
-3. Configura las mismas variables en tu hosting:
-   - **Vercel** (u otro) para `apps/web`: `NEXT_PUBLIC_*` y URL pública de la API.
-   - **Servidor de Nest**: `DATABASE_URL`, `SUPABASE_JWT_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`, `CORS_ORIGINS` con el dominio HTTPS del front.
+3. Configura las mismas variables en tu hosting (**Vercel** para `apps/web`): ver [`VERCEL_Y_PRODUCCION.md`](./VERCEL_Y_PRODUCCION.md).
 
 **HTTPS** es obligatorio para PWA y service worker en producción.
 
@@ -129,8 +121,8 @@ Si Nest responde **401 Unauthorized**, revisa que el JWT Secret en `apps/api/.en
 | Comprobación | Cómo |
 |--------------|------|
 | Tablas creadas | Table Editor en Supabase |
-| Nest ↔ Postgres | Arrancar API sin error ( `SUPABASE_DB_PASSWORD` + `SUPABASE_URL` o `DATABASE_URL` ); crear un cliente desde la UI |
+| Next ↔ Postgres | Route Handlers sin error (`DATABASE_URL` o `SUPABASE_DB_PASSWORD` + `SUPABASE_URL`) |
 | Next ↔ Supabase Auth | Login en `/login` |
-| Next ↔ Nest | Lista de clientes en `/clients` con usuario logueado |
+| Next ↔ `/api` | Lista de clientes en `/clients` con usuario logueado |
 
-Si algo falla, el primer sitio a revisar es que **`SUPABASE_JWT_SECRET`** y la conexión Postgres (`SUPABASE_DB_PASSWORD` / `DATABASE_URL`) correspondan al **mismo** proyecto que **`NEXT_PUBLIC_SUPABASE_URL`**.
+Si algo falla, revisa que la conexión Postgres (`SUPABASE_DB_PASSWORD` / `DATABASE_URL`) corresponda al **mismo** proyecto que **`NEXT_PUBLIC_SUPABASE_URL`**.

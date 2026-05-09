@@ -1,10 +1,7 @@
+import type { DashboardStats } from '@/lib/dashboard-stats-types';
 import { dbQueryOne } from '@/lib/server/db';
 
-export type DashboardStats = {
-  clientsCount: number;
-  dietsCount: number;
-  activeAssignmentsCount: number;
-};
+export type { DashboardStats };
 
 const empty: DashboardStats = { clientsCount: 0, dietsCount: 0, activeAssignmentsCount: 0 };
 

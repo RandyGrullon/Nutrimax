@@ -11,8 +11,6 @@ La API vive en **Next.js Route Handlers** (`apps/web/src/app/api/**`). Con un de
 | **Next.js** (`apps/web`) | Vercel (Framework: Next.js) |
 | **Postgres + Auth** | Supabase (ya hosted) |
 
-El directorio `apps/api` (Nest) quedó **fuera del workspace** y solo como referencia; ver [`apps/api/README.md`](../apps/api/README.md).
-
 ---
 
 ## Configuración Vercel
@@ -50,13 +48,12 @@ Configúralas en el proyecto Vercel (Production y Preview si aplica).
 
 ### Solo servidor (no uses prefijo `NEXT_PUBLIC_`)
 
-Necesarias para que **`/api/*`** hable con Postgres y valide JWT:
+Necesarias para que **`/api/*`** hable con Postgres; la sesión se valida con **Supabase Auth** (`getUser`), no con un JWT secret manual en env:
 
 | Variable | Descripción |
 |----------|-------------|
 | `SUPABASE_DB_PASSWORD` | Contraseña del usuario `postgres` del proyecto |
 | `SUPABASE_URL` | Misma URL base que arriba |
-| `SUPABASE_JWT_SECRET` | JWT Secret del dashboard (Settings → API → JWT) |
 
 Opcional:
 
@@ -64,7 +61,7 @@ Opcional:
 |----------|-----|
 | `NEXT_PUBLIC_APP_URL` | `https://tu-dominio.vercel.app` — ayuda a que los Server Components resuelvan llamadas internas a `/api` |
 | `DATABASE_URL` | Si prefieres URI Postgres completa en lugar de `SUPABASE_DB_PASSWORD` + `SUPABASE_URL` (ver [`resolve-database-url`](../apps/web/src/lib/server/resolve-database-url.ts)) |
-| `NEXT_PUBLIC_API_URL` | Solo si quieres delegar la API a **otro** host (Nest); si está vacío, el front usa **`/api` en el mismo origen** |
+| `SUPABASE_JWT_SECRET` | Solo si otros scripts la necesitan; las rutas `/api` de NutriMax no la usan para validar sesión |
 
 ### Supabase Auth
 
@@ -87,7 +84,7 @@ Se usa el pooler de Supabase con la URI estándar `db.<ref>.supabase.co:5432`. S
 ## Checklist rápido
 
 - [ ] Migración SQL aplicada en el proyecto Supabase de producción.
-- [ ] Variables en Vercel: `NEXT_PUBLIC_*` + `SUPABASE_DB_PASSWORD` + `SUPABASE_URL` + `SUPABASE_JWT_SECRET`.
+- [ ] Variables en Vercel: `NEXT_PUBLIC_*` + `SUPABASE_DB_PASSWORD` + `SUPABASE_URL` (u opcionalmente `DATABASE_URL`).
 - [ ] Auth: Site URL / Redirect URLs alineados con la URL de Vercel.
 - [ ] `CORS`: ya no aplica entre front y API (mismo origen). Sigue aplicando entre navegador y Supabase (dominios permitidos en Supabase).
 - [ ] Probar: login → `/clients` → crear paciente.
@@ -96,4 +93,4 @@ Se usa el pooler de Supabase con la URI estándar `db.<ref>.supabase.co:5432`. S
 
 ## Resumen
 
-**Un solo proyecto Vercel** despliega la UI y las rutas **`/api/*`**. Supabase sigue siendo la base de datos y el proveedor de auth. No necesitas otro hosting para la API **salvo** que quieras volver a usar Nest vía `NEXT_PUBLIC_API_URL`.
+**Un solo proyecto Vercel** despliega la UI y las rutas **`/api/*`**. Supabase sigue siendo la base de datos y el proveedor de auth.

@@ -4,12 +4,6 @@ import { ensureArray } from '@/lib/ensure-array';
 import { getInternalApiOrigin } from '@/lib/internal-api-origin';
 import { toApiPath } from '@/lib/api-path';
 
-function externalApiBase(): string | null {
-  const b = process.env.NEXT_PUBLIC_API_URL?.trim();
-  if (b && b.length > 0) return b.replace(/\/$/, '');
-  return null;
-}
-
 export async function apiServerFetch(path: string, init: RequestInit = {}): Promise<Response> {
   const supabase = await createClient();
   const baseHeaders = new Headers(init.headers);
@@ -25,15 +19,12 @@ export async function apiServerFetch(path: string, init: RequestInit = {}): Prom
     const token = await accessToken();
     const headers = new Headers(baseHeaders);
     if (token) headers.set('Authorization', `Bearer ${token}`);
-    const ext = externalApiBase();
     const pathNorm = path.startsWith('/') ? path : `/${path}`;
-    const url = ext ? `${ext}${pathNorm}` : `${await getInternalApiOrigin()}${toApiPath(pathNorm)}`;
+    const url = `${await getInternalApiOrigin()}${toApiPath(pathNorm)}`;
 
-    if (!ext) {
-      const jar = await cookies();
-      const serialized = jar.getAll().map((c) => `${c.name}=${c.value}`).join('; ');
-      if (serialized) headers.set('Cookie', serialized);
-    }
+    const jar = await cookies();
+    const serialized = jar.getAll().map((c) => `${c.name}=${c.value}`).join('; ');
+    if (serialized) headers.set('Cookie', serialized);
 
     return fetch(url, { ...init, headers, cache: 'no-store' });
   }
