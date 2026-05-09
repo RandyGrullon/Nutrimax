@@ -6,15 +6,39 @@
 
 export function isSupabasePostgresUrl(connectionString: string): boolean {
   const h = connectionString.toLowerCase();
-  return (
+  if (
     h.includes('supabase.co') ||
     h.includes('pooler.supabase.com') ||
     h.includes('supabase.com')
-  );
+  ) {
+    return true;
+  }
+  try {
+    const afterAt = h.split('@').pop() ?? '';
+    const host = afterAt.split(/[/:?]/)[0] ?? '';
+    return host.includes('supabase');
+  } catch {
+    return false;
+  }
 }
 
-/** Pooler modo transacción (Vercel/serverless): sin esto `pg` puede fallar con 500. */
-function usesSupabaseTransactionPooler(connectionString: string): boolean {
+/**
+ * Quita parámetros TLS de la URI para que `pg` no aplique verificación estricta desde la URL.
+ * El Pool debe usar `ssl: { rejectUnauthorized: false }` contra Supabase (evita «self-signed certificate in certificate chain»).
+ */
+export function stripSslQueryParamsFromPostgresUrl(connectionString: string): string {
+  let s = connectionString;
+  const keys = ['sslmode', 'sslrootcert', 'sslcert', 'sslkey', 'sslcrl', 'sslnegotiation'];
+  for (const key of keys) {
+    s = s.replace(new RegExp(`([?&])${key}=[^&]*`, 'gi'), '$1');
+  }
+  s = s.replace(/\?&+/g, '?').replace(/&&+/g, '&');
+  s = s.replace(/\?$/, '').replace(/&$/, '');
+  return s;
+}
+
+/** Pooler modo transacción: node-pg usa protocolo extendido con parámetros; hay que usar consulta simple o pooler «session». */
+export function usesSupabaseTransactionPoolerUrl(connectionString: string): boolean {
   const lower = connectionString.toLowerCase();
   return (
     lower.includes(':6543/') ||
@@ -26,11 +50,15 @@ function usesSupabaseTransactionPooler(connectionString: string): boolean {
 /** Añade sslmode y pgbouncer según corresponda (Supabase + pooler). */
 export function finalizeSupabaseConnectionString(connectionString: string): string {
   let url = connectionString;
-  if (isSupabasePostgresUrl(url) && !/sslmode=/i.test(url)) {
-    const sep = url.includes('?') ? '&' : '?';
-    url = `${url}${sep}sslmode=require`;
+  if (isSupabasePostgresUrl(url)) {
+    // verify-full puede fallar con algunos hosts/poolers; require + ssl.rejectUnauthorized en Pool es el patrón habitual con Supabase.
+    url = url.replace(/\bsslmode=verify-full\b/gi, 'sslmode=require');
+    if (!/sslmode=/i.test(url)) {
+      const sep = url.includes('?') ? '&' : '?';
+      url = `${url}${sep}sslmode=require`;
+    }
   }
-  if (usesSupabaseTransactionPooler(url) && !/[?&]pgbouncer=true/i.test(url)) {
+  if (usesSupabaseTransactionPoolerUrl(url) && !/[?&]pgbouncer=true/i.test(url)) {
     const sep = url.includes('?') ? '&' : '?';
     url = `${url}${sep}pgbouncer=true`;
   }
