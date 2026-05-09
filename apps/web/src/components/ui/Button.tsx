@@ -43,7 +43,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
 
   if (href) {
     return (
-      <Link href={href} className={cls} aria-disabled={disabled || loading}>
+      <Link prefetch href={href} className={cls} aria-disabled={disabled || loading}>
         {content}
       </Link>
     );

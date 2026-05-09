@@ -6,6 +6,7 @@ import { LogOutButton } from '@/components/LogOutButton';
 import { PwaInstallButton } from '@/components/pwa/PwaInstallButton';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { APP_SHELL_NAV } from '@/config/app-shell-nav';
+import { NavRoutePrefetcher } from '@/components/layout/NavRoutePrefetcher';
 import { cn } from '@/lib/cn';
 
 type AppShellProps = {
@@ -42,6 +43,7 @@ export function AppShell({ children, initialPathname = '' }: AppShellProps) {
                   <Link
                     key={item.href}
                     href={item.href}
+                    prefetch
                     suppressHydrationWarning
                     className={cn(
                       'rounded-full px-3.5 py-1.5 text-sm font-medium transition',
@@ -75,6 +77,7 @@ export function AppShell({ children, initialPathname = '' }: AppShellProps) {
               <Link
                 key={item.href}
                 href={item.href}
+                prefetch
                 suppressHydrationWarning
                 className={cn(
                   'whitespace-nowrap rounded-full px-3 py-1.5 text-sm font-medium',
@@ -89,6 +92,7 @@ export function AppShell({ children, initialPathname = '' }: AppShellProps) {
           })}
         </nav>
       </header>
+      <NavRoutePrefetcher />
       <div className="flex-1">{children}</div>
     </div>
   );

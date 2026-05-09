@@ -51,9 +51,14 @@ export async function middleware(request: NextRequest) {
     },
   });
 
+  /**
+   * `getSession` lee el JWT en cookie sin round-trip al servidor de Auth → navegaciones más rápidas.
+   * Las rutas `/api/*` y la lógica de negocio siguen validando credenciales donde corresponda.
+   */
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    data: { session },
+  } = await supabase.auth.getSession();
+  const user = session?.user ?? null;
 
   const isLogin = pathname.startsWith('/login');
   const isApi = pathname.startsWith('/api');
