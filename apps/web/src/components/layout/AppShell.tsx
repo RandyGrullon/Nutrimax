@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LogOutButton } from '@/components/LogOutButton';
+import { PwaInstallButton } from '@/components/pwa/PwaInstallButton';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { cn } from '@/lib/cn';
 
@@ -52,7 +53,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               })}
             </nav>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+            <PwaInstallButton variant="secondary" compact />
             <ThemeToggle />
             <LogOutButton />
           </div>

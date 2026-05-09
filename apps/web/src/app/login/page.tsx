@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/client';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { Button } from '@/components/ui/Button';
+import { PwaInstallButton } from '@/components/pwa/PwaInstallButton';
 import { HelpInfoButton } from '@/components/ui/HelpInfoButton';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
@@ -86,6 +87,9 @@ export default function LoginPage() {
             solo cambia cómo se ve la pantalla, no cierra sesión.
           </p>
         </HelpInfoButton>
+      </div>
+      <div className="relative mb-4">
+        <PwaInstallButton variant="secondary" className="w-full sm:w-auto" />
       </div>
       <Card className="relative border-border/60 p-0 shadow-nb dark:border-white/[0.06]">
         <CardHeader className="border-b border-border/60 p-6 dark:border-white/[0.06]">
