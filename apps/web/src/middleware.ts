@@ -2,7 +2,7 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { getSupabaseCookieOptions } from '@/lib/supabase/session-config';
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
   /** Para que el layout shell hidrate igual que el SSR (clases «activas» del nav). */
@@ -76,7 +76,7 @@ export async function proxy(request: NextRequest) {
 
 /**
  * No ejecutar Supabase auth sobre `/_next/*` ni `/api/*`. Si solo se excluye `_next/static`,
- * rutas como flight/HMR/chunks pueden entrar al proxy y romper JS/CSS (404, sin estilos).
+ * rutas como flight/HMR/chunks pueden entrar al middleware y romper JS/CSS (404, sin estilos).
  */
 export const config = {
   matcher: ['/', '/((?!_next/|api/).*)'],
