@@ -1,23 +1,8 @@
 'use client';
 
-import dynamic from 'next/dynamic';
+import { HomeDashboardHeroClient } from '@/components/home/HomeDashboardHeroClient';
 
-const HomeDashboardHeroClient = dynamic(
-  () =>
-    import('@/components/home/HomeDashboardHeroClient').then((m) => ({
-      default: m.HomeDashboardHeroClient,
-    })),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="flex min-h-[2.75rem] shrink-0 flex-col gap-2 self-start sm:flex-row sm:items-center">
-        <div className="h-10 w-full animate-pulse rounded-xl bg-muted/40 sm:w-36" aria-hidden />
-        <div className="h-10 w-full animate-pulse rounded-xl bg-muted/40 sm:w-44" aria-hidden />
-      </div>
-    ),
-  },
-);
-
+/** Slot cliente del hero del dashboard (PWA + CTA). Sin `dynamic` para evitar fallos de chunk en Webpack. */
 export function HomeDashboardHeroSlot() {
   return <HomeDashboardHeroClient />;
 }
