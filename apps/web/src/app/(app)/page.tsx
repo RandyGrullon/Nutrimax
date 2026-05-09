@@ -1,25 +1,14 @@
-import { Suspense } from 'react';
 import { createClient } from '@/lib/supabase/server';
-import { HomeDashboardLoader } from '@/components/home/HomeDashboardLoader';
-import { PageLoadingSkeleton } from '@/components/ui/PageLoadingSkeleton';
+import { HomeDashboardGate } from '@/components/home/HomeDashboardGate';
+import { getDashboardHomeData } from '@/lib/server/dashboard-stats';
 
 export default async function HomePage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const [{ data: auth }, dashboard] = await Promise.all([supabase.auth.getUser(), getDashboardHomeData()]);
 
-  const userProps = user ? { email: user.email ?? null } : null;
+  const userProps = auth.user ? { email: auth.user.email ?? null } : null;
 
   return (
-    <Suspense
-      fallback={
-        <div className="mx-auto max-w-6xl px-4 py-8 lg:py-10">
-          <PageLoadingSkeleton label="Cargando panel…" />
-        </div>
-      }
-    >
-      <HomeDashboardLoader user={userProps} />
-    </Suspense>
+    <HomeDashboardGate user={userProps} stats={dashboard.stats} recentClients={dashboard.recentClients} />
   );
 }

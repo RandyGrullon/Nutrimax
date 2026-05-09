@@ -6,7 +6,6 @@ import {
 } from '@/lib/server/resolve-database-url';
 
 declare global {
-  // eslint-disable-next-line no-var
   var __nutrimaxSql: ReturnType<typeof postgres> | undefined;
 }
 

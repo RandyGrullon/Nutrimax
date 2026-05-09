@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 import type { LucideIcon } from 'lucide-react';
 import {
@@ -17,8 +19,8 @@ import {
 } from 'lucide-react';
 import type { DashboardRecentClient, DashboardStats } from '@/lib/dashboard-stats-types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
+import { HomeDashboardHeroClient } from '@/components/home/HomeDashboardHeroClient';
 import { HelpInfoButton } from '@/components/ui/HelpInfoButton';
-import { HomeDashboardHeroSlot } from '@/components/home/HomeDashboardHeroSlot';
 import { cn } from '@/lib/cn';
 
 function formatRecentActivity(iso: string): string {
@@ -190,7 +192,7 @@ export function HomeDashboard({
                 </p>
               ) : null}
             </div>
-            <HomeDashboardHeroSlot />
+            <HomeDashboardHeroClient />
           </div>
 
           <div className="mt-10 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
@@ -381,3 +383,5 @@ export function HomeDashboard({
     </div>
   );
 }
+
+export default HomeDashboard;

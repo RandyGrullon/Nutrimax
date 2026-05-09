@@ -7,5 +7,5 @@ import { revalidateTag } from 'next/cache';
 export const NUTRIMAX_READ_CACHE_TAG = 'nutrimax-read-caches';
 
 export function revalidateNutrimaxReadCaches(): void {
-  revalidateTag(NUTRIMAX_READ_CACHE_TAG);
+  revalidateTag(NUTRIMAX_READ_CACHE_TAG, 'max');
 }
