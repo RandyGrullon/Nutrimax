@@ -1,6 +1,6 @@
 /**
  * Resuelve la cadena de conexión Postgres para Supabase.
- * 1) Si DATABASE_URL está definida y no contiene el placeholder, se usa tal cual.
+ * 1) Si DATABASE_URL está definida y no contiene el placeholder, se usa tal cual (tras normalizar).
  * 2) Si no, se arma con SUPABASE_DB_PASSWORD + SUPABASE_URL (https://<ref>.supabase.co).
  */
 
@@ -13,14 +13,34 @@ export function isSupabasePostgresUrl(connectionString: string): boolean {
   );
 }
 
+/** Pooler modo transacción (Vercel/serverless): sin esto `pg` puede fallar con 500. */
+function usesSupabaseTransactionPooler(connectionString: string): boolean {
+  const lower = connectionString.toLowerCase();
+  return (
+    lower.includes(':6543/') ||
+    lower.includes('pooler.supabase.com') ||
+    lower.includes('.pooler.supabase.com')
+  );
+}
+
+/** Añade sslmode y pgbouncer según corresponda (Supabase + pooler). */
+export function finalizeSupabaseConnectionString(connectionString: string): string {
+  let url = connectionString;
+  if (isSupabasePostgresUrl(url) && !/sslmode=/i.test(url)) {
+    const sep = url.includes('?') ? '&' : '?';
+    url = `${url}${sep}sslmode=require`;
+  }
+  if (usesSupabaseTransactionPooler(url) && !/[?&]pgbouncer=true/i.test(url)) {
+    const sep = url.includes('?') ? '&' : '?';
+    url = `${url}${sep}pgbouncer=true`;
+  }
+  return url;
+}
+
 export function resolveDatabaseUrl(): string {
   const direct = process.env.DATABASE_URL?.trim();
   if (direct && !direct.includes('YOUR_DB_PASSWORD')) {
-    if (isSupabasePostgresUrl(direct) && !/sslmode=/i.test(direct)) {
-      const sep = direct.includes('?') ? '&' : '?';
-      return `${direct}${sep}sslmode=require`;
-    }
-    return direct;
+    return finalizeSupabaseConnectionString(direct);
   }
 
   const password = process.env.SUPABASE_DB_PASSWORD?.trim();
@@ -40,6 +60,7 @@ export function resolveDatabaseUrl(): string {
   }
   const ref = m[1];
   const encoded = encodeURIComponent(password);
-  /** Supabase exige SSL; en Vercel/serverless sin esto `pg` suele fallar con 500. */
-  return `postgresql://postgres:${encoded}@db.${ref}.supabase.co:5432/postgres?sslmode=require`;
+  /** Conexión directa 5432: SSL obligatorio en remoto; en Vercel si falla, usa DATABASE_URL del pooler :6543. */
+  const built = `postgresql://postgres:${encoded}@db.${ref}.supabase.co:5432/postgres?sslmode=require`;
+  return finalizeSupabaseConnectionString(built);
 }
