@@ -7,7 +7,7 @@ export async function withApiAuth(
   handler: () => Promise<unknown>,
 ): Promise<NextResponse> {
   try {
-    requireAuth(req);
+    await requireAuth(req);
     const data = await handler();
     return NextResponse.json(data);
   } catch (e) {

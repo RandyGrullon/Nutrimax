@@ -1,6 +1,7 @@
 'use client';
 
 import { Monitor, Moon, Sun } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useTheme, type ThemePreference } from '@/components/theme/ThemeProvider';
 import { cn } from '@/lib/cn';
 
@@ -17,16 +18,26 @@ const LABELS: Record<string, string> = {
 };
 
 export function ThemeToggle({ className }: { className?: string }) {
-  const { preference, cycleTheme, resolvedTheme, isReady } = useTheme();
+  const { preference, cycleTheme, resolvedTheme } = useTheme();
 
-  const Icon = preference === 'system' ? Monitor : preference === 'dark' ? Moon : Sun;
-  const pressed = ariaPressed(preference, resolvedTheme === 'dark');
-  /** Evita mismatch SSR/cliente: no fijar aria-pressed hasta montar; luego usar strings explícitos. */
-  const ariaPressedAttr: 'true' | 'false' | undefined = isReady
-    ? pressed
-      ? 'true'
-      : 'false'
-    : undefined;
+  /**
+   * Nunca usar `isReady` / useLayoutEffect del padre para el primer paint: en algunos entornos puede
+   * activarse antes de terminar la hidratación y mostrar `system`/Monitor frente al HTML del servidor.
+   * Solo `useEffect` garantiza que este código corre después de hidratar (mismo marcador en servidor y primer cliente).
+   */
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
+
+  const safePreference: ThemePreference = hydrated ? preference : 'dark';
+  const safeResolvedDark = hydrated ? resolvedTheme === 'dark' : true;
+
+  const Icon = safePreference === 'system' ? Monitor : safePreference === 'dark' ? Moon : Sun;
+  const pressed = ariaPressed(safePreference, safeResolvedDark);
+  const ariaPressedAttr: 'true' | 'false' | undefined = hydrated ? (pressed ? 'true' : 'false') : undefined;
+
+  const label = LABELS[safePreference] ?? 'Cambiar tema';
 
   return (
     <button
@@ -37,8 +48,9 @@ export function ThemeToggle({ className }: { className?: string }) {
         className,
       )}
       aria-pressed={ariaPressedAttr}
-      aria-label={LABELS[preference] ?? 'Cambiar tema'}
-      title={LABELS[preference]}
+      aria-label={label}
+      title={label}
+      suppressHydrationWarning
     >
       <Icon className="h-4 w-4" aria-hidden />
     </button>

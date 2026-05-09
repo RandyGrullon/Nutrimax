@@ -28,14 +28,14 @@ type ThemeContextValue = {
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 function readStoredPreference(): ThemePreference {
-  if (typeof window === 'undefined') return 'system';
+  if (typeof window === 'undefined') return 'dark';
   const raw = window.localStorage.getItem(STORAGE_KEY);
   if (raw === 'light' || raw === 'dark' || raw === 'system') return raw;
-  return 'system';
+  return 'dark';
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [preference, setPreferenceState] = useState<ThemePreference>('system');
+  const [preference, setPreferenceState] = useState<ThemePreference>('dark');
   const [osDark, setOsDark] = useState(false);
   const [mounted, setMounted] = useState(false);
 

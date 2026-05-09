@@ -1,35 +1,74 @@
 import { notFound } from 'next/navigation';
-import { apiServerJson } from '@/lib/api-server';
-import { AssignDietForm } from '@/components/AssignDietForm';
+import { ApiError } from '@/lib/server/auth';
+import { getClientById, getTimeline, type ClientRow } from '@/lib/server/clients-server';
+import { listAssignmentsForClient } from '@/lib/server/assignments-server';
+import { listDiets } from '@/lib/server/diets-server';
+import { listClientProgressSnapshots } from '@/lib/server/progress-server';
+import {
+  ClientDietAssignmentsPanel,
+  type ClientAssignmentRow,
+} from '@/components/clients/ClientDietAssignmentsPanel';
+import { ClinicalProfileReadView } from '@/components/clients/ClinicalProfileReadView';
+import { DeleteClientFromDetailButton } from '@/components/clients/DeleteClientFromDetailButton';
+import {
+  ClientStatisticsSection,
+  mapProgressRow,
+} from '@/components/clients/ClientStatisticsSection';
 import { CmsBreadcrumb } from '@/components/cms/CmsBreadcrumb';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { HelpInfoButton } from '@/components/ui/HelpInfoButton';
+
+function formatImcTwoDecimals(value: unknown): string {
+  const n = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(n)) return String(value ?? '');
+  return n.toFixed(2);
+}
+
+function clientHeightCm(client: Pick<ClientRow, 'height_cm'>): number | null {
+  const v = client.height_cm;
+  if (v == null || v === '') return null;
+  const n = typeof v === 'number' ? v : Number(v);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
 
 export default async function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  let client: Record<string, unknown>;
+  let client: ClientRow;
   try {
-    client = await apiServerJson<Record<string, unknown>>(`/clients/${id}`);
-  } catch {
-    notFound();
+    client = await getClientById(id);
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 404) notFound();
+    throw e;
   }
 
-  let timeline: Array<Record<string, unknown>> = [];
-  let assignments: Array<Record<string, unknown>> = [];
-  let diets: Array<{ id: string; name: string }> = [];
-  try {
-    [timeline, assignments, diets] = await Promise.all([
-      apiServerJson<Array<Record<string, unknown>>>(`/clients/${id}/timeline`),
-      apiServerJson<Array<Record<string, unknown>>>(`/assignments/client/${id}`),
-      apiServerJson<Array<{ id: string; name: string }>>('/diets'),
-    ]);
-  } catch {
-    /* vacío si API falla */
-  }
+  const [timeline, assignments, dietList, progressRows] = await Promise.all([
+    getTimeline(id),
+    listAssignmentsForClient(id),
+    listDiets(),
+    listClientProgressSnapshots(id),
+  ]);
+
+  const diets = dietList.map((d) => ({ id: d.id, name: d.name }));
 
   const derived = client.derived_metrics as Record<string, unknown> | null;
   const name = String(client.full_name);
   const email = client.email ? String(client.email) : null;
+
+  const progressSnapshots = progressRows.map((r) => mapProgressRow(r as unknown as Record<string, unknown>));
+  const heightCm = clientHeightCm(client);
+
+  const assignmentRows: ClientAssignmentRow[] = assignments.map((a) => ({
+    id: String(a.id),
+    diet_id: String(a.diet_id),
+    diet_name: String(a.diet_name),
+    status: String(a.status),
+    notes: a.notes != null ? String(a.notes) : null,
+    starts_on: a.starts_on != null ? String(a.starts_on) : null,
+    created_at: a.created_at != null ? String(a.created_at) : null,
+  }));
+
+  const timelineEvents = timeline as Record<string, unknown>[];
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6">
@@ -44,7 +83,19 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
 
       <div className="mb-8 flex flex-col gap-4 border-b border-border pb-8 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">{name}</h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-2xl font-normal tracking-tight text-foreground sm:text-[1.75rem]">{name}</h1>
+            <HelpInfoButton title="Ficha del paciente" label="ficha paciente" triggerClassName="p-1.5">
+              <p>
+                Aquí ves todo lo guardado de esta persona: datos del asistente, historial y dietas.{' '}
+                <strong className="text-foreground">Editar ficha completa</strong> vuelve al asistente de 9 pasos.
+              </p>
+              <p className="text-xs">
+                Puedes <strong className="text-foreground">eliminar el paciente</strong> desde esta misma cabecera (con
+                confirmación). El bloque de dietas permite asignar planes de la biblioteca.
+              </p>
+            </HelpInfoButton>
+          </div>
           {email ? (
             <p className="mt-2 text-sm text-muted-foreground">
               <span className="font-medium text-foreground/90">Email:</span> {email}
@@ -53,28 +104,38 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
             <p className="mt-2 text-sm text-muted-foreground">Sin email registrado</p>
           )}
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button href="/clients" variant="secondary">
             Volver al listado
           </Button>
           <Button href={`/clients/${id}/edit`} variant="primary">
             Editar ficha completa
           </Button>
+          <DeleteClientFromDetailButton clientId={id} fullName={name} />
         </div>
       </div>
 
       <div className="grid gap-8 lg:grid-cols-3">
         <div className="space-y-8 lg:col-span-2">
           {derived && Object.keys(derived).length > 0 ? (
-            <section className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-5 dark:border-emerald-400/20 dark:bg-emerald-950/40">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-emerald-900 dark:text-emerald-100">
-                Métricas derivadas
-              </h2>
+            <section className="rounded-2xl border border-brand-500/20 bg-brand-600/[0.06] p-5 dark:border-brand-400/25 dark:bg-brand-500/[0.08]">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-xs font-medium uppercase tracking-[0.12em] text-brand-700 dark:text-brand-300">
+                  Métricas derivadas
+                </h2>
+                <HelpInfoButton title="Métricas derivadas" label="métricas derivadas" triggerClassName="p-1">
+                  <p>
+                    Valores calculados a partir del peso, talla, objetivo y perfil (por ejemplo IMC y calorías
+                    orientativas). Son una <strong className="text-foreground">guía</strong>, no sustituyen el criterio
+                    profesional.
+                  </p>
+                </HelpInfoButton>
+              </div>
               <dl className="mt-4 grid gap-3 sm:grid-cols-2">
                 {derived.bmi != null ? (
                   <>
                     <dt className="text-xs font-medium text-muted-foreground">IMC</dt>
-                    <dd className="text-sm font-medium text-foreground">{String(derived.bmi)}</dd>
+                    <dd className="text-sm font-medium text-foreground">{formatImcTwoDecimals(derived.bmi)}</dd>
                   </>
                 ) : null}
                 {derived.targetKcal != null ? (
@@ -93,37 +154,67 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
             </section>
           ) : null}
 
+          <ClientStatisticsSection clientId={id} snapshots={progressSnapshots} heightCm={heightCm} />
+
           <Card className="overflow-hidden p-0">
-            <CardHeader className="border-b border-border bg-muted/20 px-5 py-4">
-              <CardTitle className="text-base">Perfil clínico (JSON)</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between gap-2 border-b border-border bg-muted/20 px-5 py-4">
+              <div>
+                <CardTitle className="text-base">Perfil clínico</CardTitle>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Resumen estructurado de lo registrado en el asistente (9 pasos).
+                </p>
+              </div>
+              <HelpInfoButton title="Perfil clínico" label="perfil clínico" triggerClassName="p-1.5 shrink-0">
+                <p>
+                  Los datos se agrupan por bloques (objetivo, clínica, hábitos, actividad, etc.) para una lectura rápida
+                  en consulta.
+                </p>
+                <p className="text-xs">
+                  Para modificar respuestas usa <strong className="text-foreground">Editar ficha completa</strong>.
+                </p>
+              </HelpInfoButton>
             </CardHeader>
-            <CardContent className="p-0">
-              <pre className="max-h-[min(28rem,50vh)] overflow-auto bg-muted/30 p-4 text-xs leading-relaxed text-foreground">
-                {JSON.stringify(client.clinical_profile, null, 2)}
-              </pre>
+            <CardContent className="p-5">
+              <ClinicalProfileReadView clinicalProfile={client.clinical_profile} />
             </CardContent>
           </Card>
 
           <Card className="overflow-hidden p-0">
-            <CardHeader className="border-b border-border bg-muted/20 px-5 py-4">
+            <CardHeader className="flex flex-row items-center justify-between gap-2 border-b border-border bg-muted/20 px-5 py-4">
               <CardTitle className="text-base">Historial de eventos</CardTitle>
+              <HelpInfoButton title="Historial" label="historial eventos" triggerClassName="p-1.5">
+                <p>
+                  Incluye dietas, cambios de perfil y{' '}
+                  <strong className="text-foreground">seguimientos mensuales</strong> registrados desde Estadísticas.
+                </p>
+              </HelpInfoButton>
             </CardHeader>
             <CardContent className="p-5">
               <ul className="flex flex-col gap-2">
-                {timeline.map((ev) => (
-                  <li
-                    key={String(ev.id)}
-                    className="rounded-lg border border-border bg-card px-3 py-2.5 text-sm shadow-sm"
-                  >
-                    <div className="flex flex-wrap items-baseline gap-2">
-                      <span className="font-medium text-foreground">{String(ev.title)}</span>
-                      <time className="text-xs tabular-nums text-muted-foreground">{String(ev.created_at)}</time>
-                    </div>
-                    {ev.body ? <p className="mt-1 text-muted-foreground">{String(ev.body)}</p> : null}
-                  </li>
-                ))}
+                {timelineEvents.map((ev) => {
+                  const isProgress = String(ev.type) === 'progress_monthly';
+                  return (
+                    <li
+                      key={String(ev.id)}
+                      className="rounded-lg border border-border bg-card px-3 py-2.5 text-sm shadow-sm"
+                    >
+                      <div className="flex flex-wrap items-center gap-2">
+                        {isProgress ? (
+                          <span className="rounded-md bg-brand-600/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-800 dark:bg-brand-500/20 dark:text-brand-200">
+                            Seguimiento
+                          </span>
+                        ) : null}
+                        <span className="font-medium text-foreground">{String(ev.title)}</span>
+                        <time className="text-xs tabular-nums text-muted-foreground">{String(ev.created_at)}</time>
+                      </div>
+                      {ev.body ? (
+                        <p className="mt-1 whitespace-pre-wrap text-muted-foreground">{String(ev.body)}</p>
+                      ) : null}
+                    </li>
+                  );
+                })}
               </ul>
-              {timeline.length === 0 ? (
+              {timelineEvents.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Sin eventos en el historial.</p>
               ) : null}
             </CardContent>
@@ -132,27 +223,18 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
 
         <aside className="space-y-6 lg:sticky lg:top-24 lg:self-start">
           <Card className="overflow-hidden p-0">
-            <CardHeader className="border-b border-border bg-muted/20 px-5 py-4">
+            <CardHeader className="flex flex-row items-center justify-between gap-2 border-b border-border bg-muted/20 px-5 py-4">
               <CardTitle className="text-base">Dietas y asignaciones</CardTitle>
+              <HelpInfoButton title="Dietas del paciente" label="dietas asignaciones" triggerClassName="p-1.5">
+                <p>
+                  Pulsa <strong className="text-foreground">asignar</strong> para buscar planes: los que ya están activos
+                  aparecen bloqueados. <strong className="text-foreground">Ver</strong> abre el plan en solo lectura;{' '}
+                  <strong className="text-foreground">Editar plan</strong> va a la biblioteca.
+                </p>
+              </HelpInfoButton>
             </CardHeader>
             <CardContent className="space-y-4 p-5">
-              <AssignDietForm clientId={id} diets={diets} />
-              <ul className="flex flex-col gap-2 border-t border-border pt-4">
-                {assignments.map((a) => (
-                  <li
-                    key={String(a.id)}
-                    className="flex items-center justify-between gap-2 rounded-lg border border-border bg-muted/20 px-3 py-2 text-sm"
-                  >
-                    <span className="font-medium text-foreground">{String(a.diet_name)}</span>
-                    <span className="shrink-0 rounded-md bg-background px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      {String(a.status)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-              {assignments.length === 0 ? (
-                <p className="text-xs text-muted-foreground">Sin asignaciones todavía.</p>
-              ) : null}
+              <ClientDietAssignmentsPanel clientId={id} diets={diets} assignments={assignmentRows} />
             </CardContent>
           </Card>
         </aside>

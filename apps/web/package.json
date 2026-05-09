@@ -17,7 +17,6 @@
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.47.10",
     "framer-motion": "^11.15.0",
-    "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.468.0",
     "next": "^15.1.2",
     "pg": "^8.13.1",
@@ -28,7 +27,6 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
-    "@types/jsonwebtoken": "^9.0.7",
     "@types/node": "^22.10.2",
     "@types/pg": "^8.11.10",
     "@types/react": "^19.0.1",

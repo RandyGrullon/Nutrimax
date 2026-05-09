@@ -18,15 +18,12 @@ export class DietsController {
   }
 
   @Post()
-  create(@Body() body: { name: string; description?: string; plan?: unknown }) {
+  create(@Body() body: unknown) {
     return this.diets.create(body);
   }
 
   @Put(':id')
-  update(
-    @Param('id') id: string,
-    @Body() body: { name?: string; description?: string; plan?: unknown },
-  ) {
+  update(@Param('id') id: string, @Body() body: unknown) {
     return this.diets.update(id, body);
   }
 }

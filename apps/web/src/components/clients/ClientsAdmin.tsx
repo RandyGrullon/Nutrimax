@@ -7,9 +7,11 @@ import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/cms/ConfirmDialog';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Input } from '@/components/ui/Input';
+import { HelpInfoButton } from '@/components/ui/HelpInfoButton';
 import { Skeleton } from '@/components/ui/Skeleton';
-import { parseApiError, showErrorToast, showSuccessToast } from '@/lib/errors';
+import { parseApiError, showErrorToast, showInfoToast, showSuccessToast } from '@/lib/errors';
 import { apiFetch } from '@/lib/api';
+import { ensureArray } from '@/lib/ensure-array';
 import { cn } from '@/lib/cn';
 
 export type ClientAdminRow = {
@@ -48,8 +50,12 @@ export function ClientsAdmin({ embedded = false }: ClientsAdminProps) {
         setRows([]);
         return;
       }
-      const data = (await res.json()) as ClientAdminRow[];
-      setRows(data);
+      const raw: unknown = await res.json();
+      const list = ensureArray<ClientAdminRow>(raw);
+      setRows(list);
+      if (list.length === 0) {
+        showInfoToast('No hay pacientes registrados. Puedes crear uno nuevo cuando quieras.');
+      }
     } catch {
       showErrorToast('No pudimos cargar la lista de pacientes.');
       setRows([]);
@@ -66,11 +72,11 @@ export function ClientsAdmin({ embedded = false }: ClientsAdminProps) {
     const list = rows ?? [];
     const q = query.trim().toLowerCase();
     if (!q) return list;
-    return list.filter(
-      (r) =>
-        r.full_name.toLowerCase().includes(q) ||
-        (r.email?.toLowerCase().includes(q) ?? false),
-    );
+    return list.filter((r) => {
+      const name = (r.full_name ?? '').toLowerCase();
+      const mail = (r.email ?? '').toLowerCase();
+      return name.includes(q) || mail.includes(q);
+    });
   }, [rows, query]);
 
   async function onConfirmDelete() {
@@ -146,10 +152,21 @@ export function ClientsAdmin({ embedded = false }: ClientsAdminProps) {
               aria-label="Buscar pacientes"
             />
           </div>
-          <Button href="/clients/new" variant="primary" className="shrink-0 gap-2">
-            <UserPlus className="h-4 w-4" aria-hidden />
-            Nuevo paciente
-          </Button>
+          <div className="flex shrink-0 items-center gap-1">
+            <HelpInfoButton title="Listado de pacientes" label="lista de pacientes" triggerClassName="p-2">
+              <p>
+                Escribe en la caja de búsqueda para filtrar por <strong className="text-foreground">nombre o email</strong>.
+              </p>
+              <p>
+                Cada fila tiene <strong className="text-foreground">Editar</strong> (abre el mismo asistente que al crear)
+                y <strong className="text-foreground">Eliminar</strong> (pide confirmación).
+              </p>
+            </HelpInfoButton>
+            <Button href="/clients/new" variant="primary" className="gap-2">
+              <UserPlus className="h-4 w-4" aria-hidden />
+              Nuevo paciente
+            </Button>
+          </div>
         </div>
       </header>
 

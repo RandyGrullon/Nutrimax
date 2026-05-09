@@ -3,9 +3,11 @@
 import { createClient } from '@/lib/supabase/client';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { Button } from '@/components/ui/Button';
+import { HelpInfoButton } from '@/components/ui/HelpInfoButton';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { showErrorToast } from '@/lib/errors';
+import { beginRequestLoading } from '@/lib/request-loading';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -31,6 +33,7 @@ export default function LoginPage() {
     }
 
     setLoading(true);
+    const release = beginRequestLoading();
     const supabase = createClient();
     try {
       if (mode === 'login') {
@@ -49,30 +52,52 @@ export default function LoginPage() {
           : 'No pudimos completar el acceso. Revisa tus datos.';
       showErrorToast(msg);
     } finally {
+      release();
       setLoading(false);
     }
   }
 
   return (
-    <main className="relative mx-auto flex min-h-dvh max-w-md flex-col justify-center px-4 py-8">
-      <div className="absolute right-4 top-4">
+    <main className="relative mx-auto flex min-h-dvh max-w-md flex-col justify-center px-4 py-8 nb-surface-glow">
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-brand-600/[0.08] via-transparent to-transparent dark:from-brand-500/10" aria-hidden />
+      <div className="absolute right-4 top-4 z-10">
         <ThemeToggle />
       </div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">NutriMax</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Inicia sesión con tu cuenta de Supabase Auth.</p>
+      <div className="relative mb-8 flex flex-wrap items-start gap-2">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-[1.75rem] font-normal tracking-tight text-foreground">NutriMax</h1>
+          <p className="mt-2 text-[15px] leading-snug text-muted-foreground">
+            Acceso privado: tus datos de nutrición en un solo lugar.
+          </p>
+        </div>
+        <HelpInfoButton title="Acceso y sesión" label="inicio de sesión" triggerClassName="mt-1">
+          <p>
+            Introduce el <strong className="text-foreground">correo y contraseña</strong> que configuraste en Supabase.
+            Si aún no tienes cuenta, usa «Crear cuenta» con el mismo correo que quieras usar.
+          </p>
+          <p>
+            La app está pensada para mantener la sesión <strong className="text-foreground">mucho tiempo</strong> en
+            este navegador (cookies largas y renovación automática). La duración máxima también depende del proyecto
+            Supabase: en el panel ve a <strong className="text-foreground">Authentication → Settings → JWT expiry</strong>{' '}
+            y súbelo si quieres que casi nunca pida contraseña (por ejemplo 31536000 segundos ≈ un año).
+          </p>
+          <p className="text-xs">
+            Si entras desde otro ordenador o navegador, tendrás que volver a iniciar sesión ahí. El botón de tema (luna)
+            solo cambia cómo se ve la pantalla, no cierra sesión.
+          </p>
+        </HelpInfoButton>
       </div>
-      <Card className="p-0 shadow-card dark:shadow-card-dark">
-        <CardHeader className="border-b border-border p-5">
-          <CardTitle>{mode === 'login' ? 'Entrar' : 'Crear cuenta'}</CardTitle>
-          <CardDescription>
-            {mode === 'login' ? 'Accede al panel de profesionales.' : 'Registro con email y contraseña.'}
+      <Card className="relative border-border/60 p-0 shadow-nb dark:border-white/[0.06]">
+        <CardHeader className="border-b border-border/60 p-6 dark:border-white/[0.06]">
+          <CardTitle className="text-xl font-normal">{mode === 'login' ? 'Entrar' : 'Crear cuenta'}</CardTitle>
+          <CardDescription className="text-[15px]">
+            {mode === 'login' ? 'Accede al panel de trabajo.' : 'Registro con correo y contraseña.'}
           </CardDescription>
         </CardHeader>
-        <CardContent className="p-5">
-          <form onSubmit={onSubmit} className="flex flex-col gap-4">
-            <label className="flex flex-col gap-1.5 text-sm">
-              <span className="font-medium text-foreground">Email</span>
+        <CardContent className="p-6">
+          <form onSubmit={onSubmit} className="flex flex-col gap-5">
+            <label className="flex flex-col gap-2 text-sm">
+              <span className="font-medium text-foreground">Correo</span>
               <Input
                 type="email"
                 autoComplete="email"
@@ -80,7 +105,7 @@ export default function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
               />
             </label>
-            <label className="flex flex-col gap-1.5 text-sm">
+            <label className="flex flex-col gap-2 text-sm">
               <span className="font-medium text-foreground">Contraseña</span>
               <Input
                 type="password"
@@ -90,21 +115,21 @@ export default function LoginPage() {
               />
             </label>
             <Button type="submit" variant="primary" loading={loading} disabled={loading}>
-              {mode === 'login' ? 'Entrar' : 'Registrarse'}
+              {mode === 'login' ? 'Continuar' : 'Registrarse'}
             </Button>
             <Button
               type="button"
               variant="ghost"
-              className="w-full"
+              className="w-full text-[15px]"
               onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
             >
-              {mode === 'login' ? '¿Sin cuenta? Registrarse' : '¿Ya tienes cuenta? Entrar'}
+              {mode === 'login' ? '¿Sin cuenta? Crear cuenta' : '¿Ya tienes cuenta? Entrar'}
             </Button>
           </form>
         </CardContent>
       </Card>
-      <p className="mt-8 text-center text-xs text-muted-foreground">
-        <Link href="/" className="font-medium text-brand-700 underline underline-offset-2 dark:text-brand-400">
+      <p className="relative mt-10 text-center text-sm text-muted-foreground">
+        <Link href="/" className="font-medium text-brand-500 underline-offset-4 hover:text-brand-400 hover:underline">
           Volver al inicio
         </Link>
       </p>

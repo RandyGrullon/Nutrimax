@@ -1,7 +1,14 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { createClientBodySchema, type CreateClientBody } from '@nutrimax/shared';
+import {
+  createClientBodySchema,
+  wizardStep1MetricsSchema,
+  wizardStep2MetricsSchema,
+  wizardStep6MetricsSchema,
+  wizardStep7MetricsSchema,
+  type CreateClientBody,
+} from '@nutrimax/shared';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import {
   Activity,
@@ -17,13 +24,21 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState, type TextareaHTMLAttributes } from 'react';
-import { FormProvider, useForm, type Path } from 'react-hook-form';
+import {
+  FormProvider,
+  useForm,
+  useFormContext,
+  type FieldErrors,
+  type Path,
+  type UseFormSetError,
+} from 'react-hook-form';
 import { apiFetch } from '@/lib/api';
 import { MetricsPanel } from '@/components/MetricsPanel';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
 import { parseApiError, showErrorToast, showSuccessToast } from '@/lib/errors';
+import { HelpInfoButton } from '@/components/ui/HelpInfoButton';
 
 const STEPS = [
   { id: 1, title: 'Datos y antropometría', icon: User },
@@ -37,20 +52,9 @@ const STEPS = [
   { id: 9, title: 'Salud digestiva', icon: HeartPulse },
 ] as const;
 
+/** Solo campos que el resolver global debe revisar al pulsar «Siguiente». Lo opcional del paso 1 se valida en wizardStep1MetricsSchema (mensajes claros y sin bloquear por bioimpedancia). */
 const STEP_FIELDS: Record<number, Path<CreateClientBody>[]> = {
-  1: [
-    'full_name',
-    'email',
-    'phone',
-    'age',
-    'sex',
-    'weight_kg',
-    'height_cm',
-    'body_fat_pct',
-    'waist_cm',
-    'goal_weight_kg',
-    'bioimpedance_report',
-  ],
+  1: ['full_name', 'age', 'sex', 'weight_kg', 'height_cm'],
   2: [
     'clinical_profile.step2.goal',
     'clinical_profile.step2.timeframe',
@@ -107,6 +111,66 @@ const STEP_FIELDS: Record<number, Path<CreateClientBody>[]> = {
   ],
 };
 
+function getErrorMessageAtPath(
+  errors: FieldErrors<CreateClientBody>,
+  path: Path<CreateClientBody>,
+): string | undefined {
+  const parts = String(path).split('.');
+  let cur: unknown = errors;
+  for (const part of parts) {
+    if (!cur || typeof cur !== 'object') return undefined;
+    cur = (cur as Record<string, unknown>)[part];
+  }
+  if (
+    cur &&
+    typeof cur === 'object' &&
+    'message' in cur &&
+    typeof (cur as { message: unknown }).message === 'string'
+  ) {
+    return (cur as { message: string }).message;
+  }
+  return undefined;
+}
+
+function FieldErr({ path }: { path: Path<CreateClientBody> }) {
+  const {
+    formState: { errors },
+  } = useFormContext<CreateClientBody>();
+  const msg = getErrorMessageAtPath(errors, path);
+  return msg ? <p className="mt-0.5 text-xs text-destructive">{msg}</p> : null;
+}
+
+function validateWizardMetricsStep(
+  step: number,
+  values: CreateClientBody,
+  setError: UseFormSetError<CreateClientBody>,
+): { ok: true } | { ok: false; message: string } {
+  let parsed:
+    | ReturnType<typeof wizardStep1MetricsSchema.safeParse>
+    | ReturnType<typeof wizardStep2MetricsSchema.safeParse>
+    | ReturnType<typeof wizardStep6MetricsSchema.safeParse>
+    | ReturnType<typeof wizardStep7MetricsSchema.safeParse>
+    | null = null;
+  if (step === 1) parsed = wizardStep1MetricsSchema.safeParse(values);
+  else if (step === 2) parsed = wizardStep2MetricsSchema.safeParse(values);
+  else if (step === 6) parsed = wizardStep6MetricsSchema.safeParse(values);
+  else if (step === 7) parsed = wizardStep7MetricsSchema.safeParse(values);
+  else return { ok: true };
+
+  if (parsed.success) return { ok: true };
+
+  parsed.error.issues.forEach((issue, i) => {
+    const path = issue.path.join('.') as Path<CreateClientBody>;
+    setError(path, { type: 'wizard-metrics', message: issue.message }, { shouldFocus: i === 0 });
+  });
+  return {
+    ok: false,
+    message:
+      parsed.error.issues[0]?.message ??
+      'Completa los datos necesarios para calcular las métricas de este paso.',
+  };
+}
+
 const defaultValues: CreateClientBody = {
   full_name: '',
   email: '',
@@ -122,39 +186,6 @@ const defaultValues: CreateClientBody = {
     step9: {},
   },
 };
-
-function toNum(v: unknown): number | undefined {
-  if (v === null || v === undefined || v === '') return undefined;
-  const n = Number(v);
-  return Number.isFinite(n) ? n : undefined;
-}
-
-export function mapClientRowToForm(row: Record<string, unknown>): CreateClientBody {
-  const clinical = (row.clinical_profile as CreateClientBody['clinical_profile']) ?? {};
-  return {
-    full_name: String(row.full_name ?? ''),
-    email: row.email ? String(row.email) : '',
-    phone: row.phone ? String(row.phone) : '',
-    age: toNum(row.age),
-    sex: (row.sex as CreateClientBody['sex']) ?? undefined,
-    weight_kg: toNum(row.weight_kg),
-    height_cm: toNum(row.height_cm),
-    body_fat_pct: toNum(row.body_fat_pct),
-    waist_cm: toNum(row.waist_cm),
-    goal_weight_kg: toNum(row.goal_weight_kg),
-    bioimpedance_report: (row.bioimpedance_report as CreateClientBody['bioimpedance_report']) ?? {},
-    clinical_profile: {
-      step2: clinical.step2 ?? {},
-      step3: clinical.step3 ?? {},
-      step4: clinical.step4 ?? {},
-      step5: clinical.step5 ?? {},
-      step6: clinical.step6 ?? {},
-      step7: clinical.step7 ?? {},
-      step8: clinical.step8 ?? {},
-      step9: clinical.step9 ?? {},
-    },
-  };
-}
 
 export function ClientWizard({
   mode,
@@ -177,7 +208,7 @@ export function ClientWizard({
     mode: 'onBlur',
   });
 
-  const { register, handleSubmit, control, trigger } = form;
+  const { register, handleSubmit, control, trigger, getValues, setError } = form;
 
   async function onValid(data: CreateClientBody) {
     setSaving(true);
@@ -206,7 +237,15 @@ export function ClientWizard({
       const fields = STEP_FIELDS[step];
       const ok = await trigger(fields, { shouldFocus: true });
       if (!ok) {
-        showErrorToast('Revisa los datos de este paso antes de continuar.');
+        const first = fields
+          .map((p) => getErrorMessageAtPath(form.formState.errors, p))
+          .find((m): m is string => Boolean(m));
+        showErrorToast(first ?? 'Revisa los datos de este paso antes de continuar.');
+        return;
+      }
+      const metrics = validateWizardMetricsStep(step, getValues(), setError);
+      if (!metrics.ok) {
+        showErrorToast(metrics.message);
         return;
       }
       next();
@@ -231,9 +270,28 @@ export function ClientWizard({
           <p className="text-xs font-medium uppercase tracking-wide text-brand-800 dark:text-brand-300">
             Paso {step} de 9 · {Math.round((step / 9) * 100)}%
           </p>
-          <div className="mt-2 flex items-center gap-2">
+          <div className="mt-2 flex flex-wrap items-center gap-2">
             <StepIcon className="h-6 w-6 text-brand-700" aria-hidden />
             <h1 className="text-xl font-semibold text-foreground">{STEPS[step - 1].title}</h1>
+            <HelpInfoButton
+              title={mode === 'create' ? 'Asistente de nuevo paciente' : 'Editar ficha del paciente'}
+              label="asistente paciente"
+              triggerClassName="p-1"
+            >
+              <p>
+                Son <strong className="text-foreground">9 pasos</strong>. Completa lo que sepas; usa{' '}
+                <strong className="text-foreground">Anterior</strong> para corregir sin perder lo ya escrito.
+              </p>
+              <p>
+                En el último paso pulsa <strong className="text-foreground">Guardar</strong>{' '}
+                {mode === 'create' ? 'para crear la ficha.' : 'para guardar los cambios.'} En pantallas grandes, a la
+                derecha hay un resumen de métricas calculadas automáticamente.
+              </p>
+              <p className="text-xs">
+                En los pasos de datos antropométricos, objetivo, rutina y actividad física hay campos obligatorios para
+                que el panel de métricas (IMC, energía, etc.) calcule de forma fiable.
+              </p>
+            </HelpInfoButton>
           </div>
           <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-muted">
             <div
@@ -313,53 +371,66 @@ function Step1({
   bioOpen: boolean;
   setBioOpen: (v: boolean) => void;
 }) {
+  const {
+    formState: { errors },
+  } = useFormContext<CreateClientBody>();
+
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       <label className="sm:col-span-2 flex flex-col gap-1 text-sm">
         <span>Nombre completo *</span>
-        <Input {...register('full_name')} />
+        <Input {...register('full_name')} error={Boolean(errors.full_name)} />
+        <FieldErr path="full_name" />
       </label>
       <label className="flex flex-col gap-1 text-sm">
         <span>Email</span>
-        <Input type="email" {...register('email')} />
+        <Input type="email" {...register('email')} error={Boolean(errors.email)} />
+        <FieldErr path="email" />
       </label>
       <label className="flex flex-col gap-1 text-sm">
         <span>Teléfono</span>
         <Input {...register('phone')} />
       </label>
       <label className="flex flex-col gap-1 text-sm">
-        <span>Edad</span>
-        <Input type="number" {...register('age')} />
+        <span>Edad *</span>
+        <Input type="number" {...register('age')} error={Boolean(errors.age)} />
+        <FieldErr path="age" />
       </label>
       <label className="flex flex-col gap-1 text-sm">
-        <span>Sexo</span>
-        <Select {...register('sex')}>
+        <span>Sexo *</span>
+        <Select {...register('sex')} error={Boolean(errors.sex)}>
           <option value="">—</option>
           <option value="female">Femenino</option>
           <option value="male">Masculino</option>
           <option value="other">Otro</option>
           <option value="unknown">Prefiero no indicar</option>
         </Select>
+        <FieldErr path="sex" />
       </label>
       <label className="flex flex-col gap-1 text-sm">
-        <span>Peso actual (kg)</span>
-        <Input type="number" step="0.1" {...register('weight_kg')} />
+        <span>Peso actual (kg) *</span>
+        <Input type="number" step="0.1" {...register('weight_kg')} error={Boolean(errors.weight_kg)} />
+        <FieldErr path="weight_kg" />
       </label>
       <label className="flex flex-col gap-1 text-sm">
-        <span>Estatura (cm)</span>
-        <Input type="number" step="0.1" {...register('height_cm')} />
+        <span>Estatura (cm) *</span>
+        <Input type="number" step="0.1" {...register('height_cm')} error={Boolean(errors.height_cm)} />
+        <FieldErr path="height_cm" />
       </label>
       <label className="flex flex-col gap-1 text-sm">
         <span>% grasa (opcional)</span>
-        <Input type="number" step="0.1" {...register('body_fat_pct')} />
+        <Input type="number" step="0.1" {...register('body_fat_pct')} error={Boolean(errors.body_fat_pct)} />
+        <FieldErr path="body_fat_pct" />
       </label>
       <label className="flex flex-col gap-1 text-sm">
         <span>Cintura/abdomen (cm)</span>
-        <Input type="number" step="0.1" {...register('waist_cm')} />
+        <Input type="number" step="0.1" {...register('waist_cm')} error={Boolean(errors.waist_cm)} />
+        <FieldErr path="waist_cm" />
       </label>
       <label className="flex flex-col gap-1 text-sm">
         <span>Peso meta (kg)</span>
-        <Input type="number" step="0.1" {...register('goal_weight_kg')} />
+        <Input type="number" step="0.1" {...register('goal_weight_kg')} error={Boolean(errors.goal_weight_kg)} />
+        <FieldErr path="goal_weight_kg" />
       </label>
 
       <div className="sm:col-span-2">
@@ -408,11 +479,11 @@ function Step2({ register }: { register: ReturnType<typeof useForm<CreateClientB
   return (
     <div className="grid gap-4">
       <label className="flex flex-col gap-1 text-sm">
-        ¿Qué deseas lograr?
+        ¿Qué deseas lograr? *
         <Textarea rows={3} {...register('clinical_profile.step2.goal')} />
       </label>
       <label className="flex flex-col gap-1 text-sm">
-        ¿En cuánto tiempo?
+        ¿En cuánto tiempo? *
         <Input {...register('clinical_profile.step2.timeframe')} />
       </label>
       <label className="flex flex-col gap-1 text-sm">
@@ -465,9 +536,9 @@ function Step5({ register }: { register: ReturnType<typeof useForm<CreateClientB
 function Step6({ register }: { register: ReturnType<typeof useForm<CreateClientBody>>['register'] }) {
   return (
     <div className="grid gap-4">
-      <Field label="Hora despertar / dormir" {...register('clinical_profile.step6.wakeSleep')} />
+      <Field label="Hora despertar / dormir *" {...register('clinical_profile.step6.wakeSleep')} />
       <label className="flex flex-col gap-1 text-sm">
-        Trabajo
+        Trabajo *
         <Select {...register('clinical_profile.step6.workType')}>
           <option value="">—</option>
           <option value="sedentary">Sedentario</option>
@@ -475,7 +546,7 @@ function Step6({ register }: { register: ReturnType<typeof useForm<CreateClientB
         </Select>
       </label>
       <label className="flex flex-col gap-1 text-sm">
-        Estrés
+        Estrés *
         <Select {...register('clinical_profile.step6.stressLevel')}>
           <option value="">—</option>
           <option value="low">Bajo</option>
@@ -483,7 +554,7 @@ function Step6({ register }: { register: ReturnType<typeof useForm<CreateClientB
           <option value="high">Alto</option>
         </Select>
       </label>
-      <Field label="Calidad del sueño" {...register('clinical_profile.step6.sleepQuality')} />
+      <Field label="Calidad del sueño *" {...register('clinical_profile.step6.sleepQuality')} />
     </div>
   );
 }
@@ -492,7 +563,7 @@ function Step7({ register }: { register: ReturnType<typeof useForm<CreateClientB
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       <label className="flex flex-col gap-1 text-sm sm:col-span-2">
-        ¿Realizas ejercicio?
+        ¿Realizas ejercicio? *
         <Select {...register('clinical_profile.step7.exercises')}>
           <option value="">—</option>
           <option value="yes">Sí</option>
@@ -501,11 +572,11 @@ function Step7({ register }: { register: ReturnType<typeof useForm<CreateClientB
       </label>
       <Field label="Tipo" className="sm:col-span-2" {...register('clinical_profile.step7.exerciseType')} />
       <label className="flex flex-col gap-1 text-sm">
-        Días/semana
+        Días/semana (si entrena)
         <Input type="number" {...register('clinical_profile.step7.frequencyPerWeek')} />
       </label>
       <label className="flex flex-col gap-1 text-sm">
-        Duración (min)
+        Duración en min (si entrena)
         <Input type="number" {...register('clinical_profile.step7.durationMinutes')} />
       </label>
     </div>

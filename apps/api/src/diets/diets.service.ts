@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { createDietBodySchema, updateDietBodySchema } from '@nutrimax/shared';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 
 export interface DietRow {
@@ -24,32 +25,31 @@ export class DietsService {
     return row;
   }
 
-  async create(body: { name: string; description?: string; plan?: unknown }): Promise<DietRow> {
+  async create(body: unknown): Promise<DietRow> {
+    const parsed = createDietBodySchema.safeParse(body);
+    if (!parsed.success) {
+      const first = parsed.error.issues[0]?.message ?? 'Datos de dieta no válidos.';
+      throw new BadRequestException(first);
+    }
+    const { name, description, plan } = parsed.data;
     const rows = await this.db.query<DietRow>(
       `INSERT INTO diets (name, description, plan) VALUES ($1, $2, $3::jsonb) RETURNING *`,
-      [body.name, body.description ?? null, JSON.stringify(body.plan ?? {})],
+      [name, description, JSON.stringify(plan)],
     );
     return rows[0];
   }
 
-  async update(
-    id: string,
-    body: { name?: string; description?: string; plan?: unknown },
-  ): Promise<DietRow> {
+  async update(id: string, body: unknown): Promise<DietRow> {
     await this.getById(id);
+    const parsed = updateDietBodySchema.safeParse(body);
+    if (!parsed.success) {
+      const first = parsed.error.issues[0]?.message ?? 'Datos de dieta no válidos.';
+      throw new BadRequestException(first);
+    }
+    const { name, description, plan } = parsed.data;
     const rows = await this.db.query<DietRow>(
-      `UPDATE diets SET
-        name = COALESCE($1, name),
-        description = COALESCE($2, description),
-        plan = COALESCE($3::jsonb, plan)
-      WHERE id = $4
-      RETURNING *`,
-      [
-        body.name ?? null,
-        body.description !== undefined ? body.description : null,
-        body.plan !== undefined ? JSON.stringify(body.plan) : null,
-        id,
-      ],
+      `UPDATE diets SET name = $1, description = $2, plan = $3::jsonb WHERE id = $4 RETURNING *`,
+      [name, description, JSON.stringify(plan), id],
     );
     return rows[0];
   }

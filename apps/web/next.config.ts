@@ -11,6 +11,8 @@ const withPWA = withPWAInit({
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   transpilePackages: ['@nutrimax/shared'],
+  /** Evita vendor-chunks rotos de Supabase tras cambios de lockfile o builds parciales (pnpm + Webpack). */
+  serverExternalPackages: ['@supabase/supabase-js', '@supabase/ssr', '@supabase/auth-js'],
 };
 
 export default withPWA(nextConfig);

@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   return withApiAuth(req, async () => {
-    const body = (await req.json()) as { name: string; description?: string; plan?: unknown };
+    const body: unknown = await req.json();
     return createDiet(body);
   });
 }

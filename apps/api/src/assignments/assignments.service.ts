@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { ClientsService } from '../clients/clients.service';
 import { DietsService } from '../diets/diets.service';
@@ -20,6 +20,17 @@ export class AssignmentsService {
   }) {
     await this.clients.getById(body.client_id);
     await this.diets.getById(body.diet_id);
+
+    const dup = await this.db.queryOne<{ id: string }>(
+      `SELECT id FROM client_diet_assignments
+         WHERE client_id = $1 AND diet_id = $2 AND status = 'active'`,
+      [body.client_id, body.diet_id],
+    );
+    if (dup) {
+      throw new ConflictException(
+        'Esta dieta ya está asignada de forma activa a este paciente.',
+      );
+    }
 
     await this.db.query(
       `UPDATE client_diet_assignments SET status = 'archived', ends_on = COALESCE(ends_on, CURRENT_DATE)

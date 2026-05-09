@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import {
   createClientBodySchema,
   deriveAllMetrics,
@@ -43,11 +44,12 @@ export async function listClients(): Promise<ClientRow[]> {
   return dbQuery<ClientRow>(`SELECT * FROM clients ORDER BY updated_at DESC`);
 }
 
-export async function getClientById(id: string): Promise<ClientRow> {
+/** Una lectura por request (RSC/API): evita repetir SELECT cuando timeline/asignaciones/progreso validan el mismo id. */
+export const getClientById = cache(async (id: string): Promise<ClientRow> => {
   const row = await dbQueryOne<ClientRow>(`SELECT * FROM clients WHERE id = $1`, [id]);
   if (!row) throw new ApiError(404, 'No encontramos ese paciente.');
   return row;
-}
+});
 
 export async function createClient(raw: unknown): Promise<ClientRow> {
   const body = createClientBodySchema.parse(raw);

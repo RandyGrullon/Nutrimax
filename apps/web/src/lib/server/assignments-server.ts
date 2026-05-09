@@ -13,6 +13,18 @@ export async function assignDiet(body: {
   await getClientById(body.client_id);
   await getDietById(body.diet_id);
 
+  const alreadyActive = await dbQueryOne<{ id: string }>(
+    `SELECT id FROM client_diet_assignments
+       WHERE client_id = $1 AND diet_id = $2 AND status = 'active'`,
+    [body.client_id, body.diet_id],
+  );
+  if (alreadyActive) {
+    throw new ApiError(
+      409,
+      'Esta dieta ya está asignada de forma activa a este paciente. Archiva la asignación actual si quieres cambiar de plan, o elige otra dieta.',
+    );
+  }
+
   await dbQuery(
     `UPDATE client_diet_assignments SET status = 'archived', ends_on = COALESCE(ends_on, CURRENT_DATE)
        WHERE client_id = $1 AND status = 'active'`,
@@ -57,6 +69,50 @@ export async function listAssignmentsForClient(clientId: string) {
        ORDER BY a.created_at DESC`,
     [clientId],
   );
+}
+
+export async function updateAssignment(
+  assignmentId: string,
+  body: { notes?: string | null; starts_on?: string | null },
+): Promise<{ id: string }> {
+  const row = await dbQueryOne<{
+    id: string;
+    client_id: string;
+    status: string;
+    notes: string | null;
+    starts_on: string | null;
+  }>(
+    `SELECT id, client_id, status, notes, starts_on FROM client_diet_assignments WHERE id = $1`,
+    [assignmentId],
+  );
+  if (!row) throw new ApiError(404, 'No encontramos esa asignación.');
+  if (row.status !== 'active') {
+    throw new ApiError(400, 'Solo se pueden editar asignaciones activas.');
+  }
+  if (body.notes === undefined && body.starts_on === undefined) {
+    throw new ApiError(400, 'Indica notas o fecha de inicio para actualizar.');
+  }
+
+  const nextNotes = body.notes !== undefined ? body.notes : row.notes;
+  const nextStarts = body.starts_on !== undefined ? body.starts_on : row.starts_on;
+
+  await dbQuery(
+    `UPDATE client_diet_assignments SET notes = $1, starts_on = $2 WHERE id = $3`,
+    [nextNotes, nextStarts, assignmentId],
+  );
+
+  await dbQuery(
+    `INSERT INTO client_timeline_events (client_id, type, title, body, payload)
+       VALUES ($1, 'diet_changed', $2, $3, $4::jsonb)`,
+    [
+      row.client_id,
+      'Asignación de dieta actualizada',
+      nextNotes,
+      JSON.stringify({ assignment_id: assignmentId }),
+    ],
+  );
+
+  return { id: assignmentId };
 }
 
 export async function archiveAssignment(assignmentId: string): Promise<{ ok: boolean }> {

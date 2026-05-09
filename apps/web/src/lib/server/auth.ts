@@ -1,5 +1,6 @@
 import type { NextRequest } from 'next/server';
-import * as jwt from 'jsonwebtoken';
+import { createServerClient } from '@supabase/ssr';
+import { getSupabaseCookieOptions } from '@/lib/supabase/session-config';
 
 export interface SupabaseJwtPayload {
   sub: string;
@@ -19,22 +20,59 @@ export class ApiError extends Error {
   }
 }
 
-export function requireAuth(req: NextRequest): SupabaseJwtPayload {
-  const header = req.headers.get('authorization');
-  if (!header?.startsWith('Bearer ')) {
-    throw new ApiError(401, 'Falta el token de autorización. Vuelve a iniciar sesión.');
-  }
-  const token = header.slice('Bearer '.length).trim();
-  const secret = process.env.SUPABASE_JWT_SECRET?.trim();
-  if (!secret) {
+function userToPayload(user: {
+  id: string;
+  email?: string | null;
+  role?: string;
+}): SupabaseJwtPayload {
+  return {
+    sub: user.id,
+    email: user.email ?? undefined,
+    role: user.role,
+  };
+}
+
+/**
+ * Valida la sesión con Supabase Auth (igual que el dashboard), sin depender de `SUPABASE_JWT_SECRET`.
+ * Antes se usaba `jsonwebtoken` local: si el secret en `.env` no era idéntico al del proyecto,
+ * aparecía «token no es válido» aunque la sesión fuera correcta.
+ */
+export async function requireAuth(req: NextRequest): Promise<SupabaseJwtPayload> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key =
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  if (!url || !key) {
     throw new ApiError(500, 'El servidor no puede validar sesiones. Revisa la configuración de autenticación.');
   }
-  try {
-    return jwt.verify(token, secret, {
-      algorithms: ['HS256'],
-      clockTolerance: 120,
-    }) as SupabaseJwtPayload;
-  } catch {
-    throw new ApiError(401, 'Tu sesión caducó o el token no es válido. Vuelve a iniciar sesión.');
+
+  const bearer = req.headers.get('authorization')?.startsWith('Bearer ')
+    ? req.headers.get('authorization')!.slice('Bearer '.length).trim()
+    : '';
+
+  const supabase = createServerClient(url, key, {
+    cookieOptions: getSupabaseCookieOptions(),
+    cookies: {
+      getAll() {
+        return req.cookies.getAll();
+      },
+      setAll() {
+        /* Solo lectura para validar en handlers */
+      },
+    },
+  });
+
+  const { data, error } =
+    bearer.length > 0 ? await supabase.auth.getUser(bearer) : await supabase.auth.getUser();
+
+  const user = data.user;
+  if (error || !user) {
+    throw new ApiError(
+      401,
+      bearer.length > 0
+        ? 'Tu sesión caducó o el token no es válido. Vuelve a iniciar sesión.'
+        : 'Falta una sesión activa. Vuelve a iniciar sesión.',
+    );
   }
+
+  return userToPayload(user);
 }

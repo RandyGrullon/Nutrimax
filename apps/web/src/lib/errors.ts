@@ -12,3 +12,7 @@ export function showErrorToast(message: string): void {
 export function showSuccessToast(message: string): void {
   toast.success(message);
 }
+
+export function showInfoToast(message: string): void {
+  toast.message(message);
+}

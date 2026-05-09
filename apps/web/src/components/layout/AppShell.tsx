@@ -16,14 +16,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   return (
-    <div className="flex min-h-dvh flex-col bg-background">
-      <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-        <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-4 px-4">
-          <div className="flex min-w-0 items-center gap-6">
-            <Link href="/" className="shrink-0 font-semibold text-foreground">
+    <div
+      className="relative flex min-h-dvh flex-col bg-background nb-surface-glow"
+      suppressHydrationWarning
+    >
+      <header className="sticky top-0 z-40 border-b border-border/60 bg-background/90 backdrop-blur-md supports-[backdrop-filter]:bg-background/75 dark:border-white/[0.06]">
+        <div className="mx-auto flex h-[3.25rem] max-w-6xl items-center justify-between gap-4 px-4">
+          <div className="flex min-w-0 items-center gap-5">
+            <Link
+              href="/"
+              className="shrink-0 text-[15px] font-medium tracking-tight text-foreground hover:text-brand-400"
+            >
               NutriMax
             </Link>
-            <nav className="hidden items-center gap-1 sm:flex" aria-label="Principal">
+            <nav className="hidden items-center gap-0.5 sm:flex" aria-label="Principal">
               {NAV.map((item) => {
                 const active =
                   item.href === '/'
@@ -34,10 +40,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     key={item.href}
                     href={item.href}
                     className={cn(
-                      'rounded-md px-3 py-2 text-sm font-medium transition',
+                      'rounded-full px-3.5 py-1.5 text-sm font-medium transition',
                       active
-                        ? 'bg-accent text-accent-foreground'
-                        : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                        ? 'bg-muted text-foreground shadow-sm dark:bg-white/[0.08]'
+                        : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
                     )}
                   >
                     {item.label}
@@ -52,7 +58,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
         <nav
-          className="flex gap-1 overflow-x-auto border-t border-border px-4 py-2 sm:hidden"
+          className="flex gap-1 overflow-x-auto border-t border-border/60 px-4 py-2 dark:border-white/[0.06] sm:hidden"
           aria-label="Principal móvil"
         >
           {NAV.map((item) => {
@@ -65,10 +71,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  'whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium',
+                  'whitespace-nowrap rounded-full px-3 py-1.5 text-sm font-medium',
                   active
-                    ? 'bg-accent text-accent-foreground'
-                    : 'text-muted-foreground hover:bg-muted',
+                    ? 'bg-muted text-foreground dark:bg-white/[0.08]'
+                    : 'text-muted-foreground hover:bg-muted/60',
                 )}
               >
                 {item.label}

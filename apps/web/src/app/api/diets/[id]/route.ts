@@ -12,7 +12,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
 export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
   return withApiAuth(req, async () => {
-    const body = (await req.json()) as { name?: string; description?: string; plan?: unknown };
+    const body: unknown = await req.json();
     return updateDiet(id, body);
   });
 }

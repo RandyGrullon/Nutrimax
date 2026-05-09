@@ -1,7 +1,22 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { getSupabaseCookieOptions } from '@/lib/supabase/session-config';
 
 export async function middleware(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+
+  /** Nunca interceptar activos de Next, API ni estáticos públicos (evita 404 en chunks/CSS en dev). */
+  if (
+    pathname.startsWith('/_next/') ||
+    pathname.startsWith('/api/') ||
+    pathname === '/favicon.ico' ||
+    pathname.startsWith('/icons/') ||
+    pathname === '/sw.js' ||
+    pathname.endsWith('.webmanifest')
+  ) {
+    return NextResponse.next({ request: { headers: request.headers } });
+  }
+
   let response = NextResponse.next({ request: { headers: request.headers } });
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -12,6 +27,7 @@ export async function middleware(request: NextRequest) {
   }
 
   const supabase = createServerClient(url, key, {
+    cookieOptions: getSupabaseCookieOptions(),
     cookies: {
       getAll() {
         return request.cookies.getAll();
@@ -32,8 +48,10 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const isLogin = request.nextUrl.pathname.startsWith('/login');
-  if (!user && !isLogin) {
+  const isLogin = pathname.startsWith('/login');
+  const isApi = pathname.startsWith('/api');
+  /** Las rutas /api deben responder JSON (401), no redirección HTML, para fetch y RSC. */
+  if (!user && !isLogin && !isApi) {
     const redirect = NextResponse.redirect(new URL('/login', request.url));
     return redirect;
   }
@@ -44,6 +62,10 @@ export async function middleware(request: NextRequest) {
   return response;
 }
 
+/**
+ * No ejecutar Supabase auth sobre `/_next/*` ni `/api/*`. Si solo se excluye `_next/static`,
+ * rutas como flight/HMR/chunks pueden entrar al middleware y romper JS/CSS (404, sin estilos).
+ */
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|icons/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
+  matcher: ['/', '/((?!_next/|api/).*)'],
 };

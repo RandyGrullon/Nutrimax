@@ -1,17 +1,20 @@
 import { notFound } from 'next/navigation';
-import { ClientWizard, mapClientRowToForm } from '@/components/ClientWizard';
-import { apiServerJson } from '@/lib/api-server';
+import { ClientWizard } from '@/components/ClientWizard';
+import { mapClientRowToForm } from '@/lib/map-client-row-to-form';
+import { ApiError } from '@/lib/server/auth';
+import { getClientById } from '@/lib/server/clients-server';
 import { Button } from '@/components/ui/Button';
 
 export default async function EditClientPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  let row: Record<string, unknown>;
+  let row: Awaited<ReturnType<typeof getClientById>>;
   try {
-    row = await apiServerJson<Record<string, unknown>>(`/clients/${id}`);
-  } catch {
-    notFound();
+    row = await getClientById(id);
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 404) notFound();
+    throw e;
   }
-  const initial = mapClientRowToForm(row);
+  const initial = mapClientRowToForm(row as unknown as Record<string, unknown>);
 
   return (
     <div>

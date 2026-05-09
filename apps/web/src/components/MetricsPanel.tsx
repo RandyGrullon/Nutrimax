@@ -33,10 +33,12 @@ export function MetricsPanel({ control }: { control: Control<CreateClientBody> }
   };
 
   return (
-    <aside className="rounded-2xl border border-emerald-500/25 bg-emerald-500/5 p-4 text-sm shadow-inner dark:border-emerald-400/20 dark:bg-emerald-950/40">
-      <h3 className="mb-3 font-semibold text-emerald-900 dark:text-emerald-100">Resumen calculado</h3>
+    <aside className="rounded-2xl border border-brand-500/20 bg-brand-600/[0.06] p-4 text-sm shadow-inner dark:border-brand-400/25 dark:bg-brand-500/[0.08]">
+      <h3 className="mb-3 text-xs font-medium uppercase tracking-[0.12em] text-brand-700 dark:text-brand-300">
+        Resumen calculado
+      </h3>
       <motion.ul className="flex flex-col gap-3" initial="hidden" animate="show" variants={{ show: { transition: { staggerChildren: 0.04 } } }}>
-        <motion.li variants={item} className="rounded-lg bg-card/90 p-3 shadow-sm dark:bg-card/60">
+        <motion.li variants={item} className="rounded-xl border border-border/60 bg-card/90 p-3 shadow-sm dark:border-white/[0.06] dark:bg-card/60">
           <div className="flex items-center justify-between gap-2">
             <span className="font-medium text-foreground">IMC</span>
             <MetricInfoButton label="IMC" title="Índice de masa corporal">
@@ -65,7 +67,7 @@ export function MetricsPanel({ control }: { control: Control<CreateClientBody> }
           </p>
         </motion.li>
 
-        <motion.li variants={item} className="rounded-lg bg-card/90 p-3 shadow-sm dark:bg-card/60">
+        <motion.li variants={item} className="rounded-xl border border-border/60 bg-card/90 p-3 shadow-sm dark:border-white/[0.06] dark:bg-card/60">
           <div className="flex items-center justify-between gap-2">
             <span className="font-medium text-foreground">% grasa (interpretación)</span>
             <MetricInfoButton label="grasa corporal" title="Porcentaje de grasa corporal">
@@ -82,7 +84,7 @@ export function MetricsPanel({ control }: { control: Control<CreateClientBody> }
           </p>
         </motion.li>
 
-        <motion.li variants={item} className="rounded-lg bg-card/90 p-3 shadow-sm dark:bg-card/60">
+        <motion.li variants={item} className="rounded-xl border border-border/60 bg-card/90 p-3 shadow-sm dark:border-white/[0.06] dark:bg-card/60">
           <div className="flex items-center justify-between gap-2">
             <span className="font-medium text-foreground">Peso ideal sugerido</span>
             <MetricInfoButton label="peso ideal" title="Rango de peso sugerido">
@@ -104,7 +106,7 @@ export function MetricsPanel({ control }: { control: Control<CreateClientBody> }
           </p>
         </motion.li>
 
-        <motion.li variants={item} className="rounded-lg bg-card/90 p-3 shadow-sm dark:bg-card/60">
+        <motion.li variants={item} className="rounded-xl border border-border/60 bg-card/90 p-3 shadow-sm dark:border-white/[0.06] dark:bg-card/60">
           <div className="flex items-center justify-between gap-2">
             <span className="font-medium text-foreground">Energía (TMB / GET / objetivo)</span>
             <MetricInfoButton label="calorías" title="Tasa metabólica y calorías">
@@ -127,7 +129,7 @@ export function MetricsPanel({ control }: { control: Control<CreateClientBody> }
           </p>
         </motion.li>
 
-        <motion.li variants={item} className="rounded-lg bg-card/90 p-3 shadow-sm dark:bg-card/60">
+        <motion.li variants={item} className="rounded-xl border border-border/60 bg-card/90 p-3 shadow-sm dark:border-white/[0.06] dark:bg-card/60">
           <div className="flex items-center justify-between gap-2">
             <span className="font-medium text-foreground">Macronutrientes</span>
             <MetricInfoButton label="macros" title="Proteínas, carbohidratos y grasas">
@@ -145,7 +147,7 @@ export function MetricsPanel({ control }: { control: Control<CreateClientBody> }
           </p>
         </motion.li>
 
-        <motion.li variants={item} className="rounded-lg bg-card/90 p-3 shadow-sm dark:bg-card/60">
+        <motion.li variants={item} className="rounded-xl border border-border/60 bg-card/90 p-3 shadow-sm dark:border-white/[0.06] dark:bg-card/60">
           <div className="flex items-center justify-between gap-2">
             <span className="font-medium text-foreground">Agua recomendada</span>
             <MetricInfoButton label="agua" title="Hidratación orientativa">
