@@ -3,4 +3,12 @@ export type DashboardStats = {
   clientsCount: number;
   dietsCount: number;
   activeAssignmentsCount: number;
+  mealPlansCount: number;
+  foodsCount: number;
+};
+
+export type DashboardRecentClient = {
+  id: string;
+  full_name: string;
+  updated_at: string;
 };

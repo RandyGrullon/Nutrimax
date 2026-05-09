@@ -2,16 +2,19 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { MoreHorizontal, Pencil, Search, Trash2, UserPlus, Users } from 'lucide-react';
+import { MoreHorizontal, Pencil, Trash2, UserPlus, Users } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/cms/ConfirmDialog';
+import { DataTablePagination } from '@/components/cms/DataTablePagination';
+import { DataTableToolbar } from '@/components/cms/DataTableToolbar';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { Input } from '@/components/ui/Input';
 import { HelpInfoButton } from '@/components/ui/HelpInfoButton';
+import { Select } from '@/components/ui/Select';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { parseApiError, showErrorToast, showSuccessToast } from '@/lib/errors';
 import { apiFetch } from '@/lib/api';
 import { ensureArray } from '@/lib/ensure-array';
+import { clampPage, totalPagesFor } from '@/lib/paginate';
 import { cn } from '@/lib/cn';
 
 export type ClientAdminRow = {
@@ -42,6 +45,9 @@ export function ClientsAdmin({ embedded = false, initialRows }: ClientsAdminProp
   );
   const [loading, setLoading] = useState(initialRows === undefined);
   const [query, setQuery] = useState('');
+  const [sortBy, setSortBy] = useState<'updated_desc' | 'updated_asc' | 'name_asc' | 'name_desc'>('updated_desc');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [deleteTarget, setDeleteTarget] = useState<ClientAdminRow | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
@@ -80,6 +86,40 @@ export function ClientsAdmin({ embedded = false, initialRows }: ClientsAdminProp
       return name.includes(q) || mail.includes(q);
     });
   }, [rows, query]);
+
+  const sortedRows = useMemo(() => {
+    const arr = [...filtered];
+    switch (sortBy) {
+      case 'name_asc':
+        return arr.sort((a, b) => a.full_name.localeCompare(b.full_name, 'es'));
+      case 'name_desc':
+        return arr.sort((a, b) => b.full_name.localeCompare(a.full_name, 'es'));
+      case 'updated_asc':
+        return arr.sort(
+          (a, b) => new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime(),
+        );
+      default:
+        return arr.sort(
+          (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
+        );
+    }
+  }, [filtered, sortBy]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [query, sortBy]);
+
+  const totalPages = totalPagesFor(sortedRows.length, pageSize);
+  const safePage = clampPage(page, totalPages);
+
+  useEffect(() => {
+    if (page !== safePage) setPage(safePage);
+  }, [page, safePage]);
+
+  const pageSlice = useMemo(() => {
+    const start = (safePage - 1) * pageSize;
+    return sortedRows.slice(start, start + pageSize);
+  }, [sortedRows, safePage, pageSize]);
 
   async function onConfirmDelete() {
     if (!deleteTarget) return;
@@ -140,21 +180,32 @@ export function ClientsAdmin({ embedded = false, initialRows }: ClientsAdminProp
             </p>
           </div>
         ) : null}
-        <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center lg:ml-auto lg:w-auto lg:flex-1 lg:justify-end">
-          <div className="relative min-w-[200px] flex-1 lg:max-w-md">
-            <Search
-              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-              aria-hidden
-            />
-            <Input
-              className="pl-9"
-              placeholder="Buscar por nombre o email…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              aria-label="Buscar pacientes"
-            />
-          </div>
-          <div className="flex shrink-0 items-center gap-1">
+        <div className="flex w-full flex-col gap-3 lg:ml-auto lg:w-auto lg:flex-1 lg:justify-end">
+          <DataTableToolbar
+            searchPlaceholder="Buscar por nombre o email…"
+            searchValue={query}
+            onSearchChange={setQuery}
+            searchAriaLabel="Buscar pacientes"
+            pageSize={pageSize}
+            onPageSizeChange={(n) => {
+              setPageSize(n);
+              setPage(1);
+            }}
+            filters={
+              <Select
+                className="min-w-[11rem]"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+                aria-label="Ordenar listado"
+              >
+                <option value="updated_desc">Actualizado · reciente primero</option>
+                <option value="updated_asc">Actualizado · más antiguo</option>
+                <option value="name_asc">Nombre A → Z</option>
+                <option value="name_desc">Nombre Z → A</option>
+              </Select>
+            }
+          />
+          <div className="flex shrink-0 items-center justify-end gap-1">
             <HelpInfoButton title="Listado de pacientes" label="lista de pacientes" triggerClassName="p-2">
               <p>
                 Escribe en la caja de búsqueda para filtrar por <strong className="text-foreground">nombre o email</strong>.
@@ -188,7 +239,9 @@ export function ClientsAdmin({ embedded = false, initialRows }: ClientsAdminProp
         <div className="overflow-hidden rounded-xl border border-border bg-card shadow-card dark:shadow-card-dark">
           <div className="flex items-center justify-between border-b border-border bg-muted/30 px-4 py-3">
             <span className="text-xs font-medium text-muted-foreground">
-              {filtered.length} de {list.length} registros
+              {sortedRows.length === list.length
+                ? `${list.length} registros`
+                : `${sortedRows.length} coincidencias · ${list.length} en total`}
             </span>
             <span className="flex items-center gap-1 text-xs text-muted-foreground">
               <MoreHorizontal className="h-3.5 w-3.5" aria-hidden />
@@ -206,7 +259,7 @@ export function ClientsAdmin({ embedded = false, initialRows }: ClientsAdminProp
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((row) => (
+                {pageSlice.map((row) => (
                   <tr
                     key={row.id}
                     className="border-b border-border/80 transition last:border-0 hover:bg-muted/15"
@@ -250,10 +303,19 @@ export function ClientsAdmin({ embedded = false, initialRows }: ClientsAdminProp
               </tbody>
             </table>
           </div>
-          {filtered.length === 0 && query.trim() ? (
+          {sortedRows.length === 0 && query.trim() ? (
             <p className="border-t border-border px-4 py-6 text-center text-sm text-muted-foreground">
               No hay resultados para «{query.trim()}».
             </p>
+          ) : null}
+          {sortedRows.length > 0 ? (
+            <DataTablePagination
+              page={safePage}
+              pageSize={pageSize}
+              totalFiltered={sortedRows.length}
+              datasetTotal={list.length}
+              onPageChange={setPage}
+            />
           ) : null}
         </div>
       )}

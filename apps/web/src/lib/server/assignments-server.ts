@@ -64,6 +64,8 @@ export type ClientAssignmentDbRow = {
   client_id: string;
   diet_id: string;
   diet_name: string;
+  meal_plan_id: string | null;
+  meal_plan_name: string | null;
   status: string;
   notes: string | null;
   starts_on: string | null;
@@ -74,9 +76,11 @@ export type ClientAssignmentDbRow = {
 export async function listAssignmentsForClient(clientId: string): Promise<ClientAssignmentDbRow[]> {
   await getClientById(clientId);
   return dbQuery<ClientAssignmentDbRow>(
-    `SELECT a.*, d.name AS diet_name
+    `SELECT a.*, d.name AS diet_name, d.meal_plan_id,
+            mp.name AS meal_plan_name
        FROM client_diet_assignments a
        JOIN diets d ON d.id = a.diet_id
+       LEFT JOIN meal_plans mp ON mp.id = d.meal_plan_id
        WHERE a.client_id = $1
        ORDER BY a.created_at DESC`,
     [clientId],

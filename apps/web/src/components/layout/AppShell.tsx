@@ -5,16 +5,18 @@ import { usePathname } from 'next/navigation';
 import { LogOutButton } from '@/components/LogOutButton';
 import { PwaInstallButton } from '@/components/pwa/PwaInstallButton';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
+import { APP_SHELL_NAV } from '@/config/app-shell-nav';
 import { cn } from '@/lib/cn';
 
-const NAV = [
-  { href: '/', label: 'Inicio' },
-  { href: '/clients', label: 'Pacientes' },
-  { href: '/diets', label: 'Dietas' },
-] as const;
+type AppShellProps = {
+  children: React.ReactNode;
+  /** Ruta de la petición (middleware); evita desajuste activo nav SSR vs cliente. */
+  initialPathname?: string;
+};
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({ children, initialPathname = '' }: AppShellProps) {
   const pathname = usePathname();
+  const pathForActive = pathname.length > 0 ? pathname : initialPathname;
 
   return (
     <div
@@ -31,15 +33,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               NutriMax
             </Link>
             <nav className="hidden items-center gap-0.5 sm:flex" aria-label="Principal">
-              {NAV.map((item) => {
+              {APP_SHELL_NAV.map((item) => {
                 const active =
                   item.href === '/'
-                    ? pathname === '/'
-                    : pathname === item.href || pathname.startsWith(`${item.href}/`);
+                    ? pathForActive === '/'
+                    : pathForActive === item.href || pathForActive.startsWith(`${item.href}/`);
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
+                    suppressHydrationWarning
                     className={cn(
                       'rounded-full px-3.5 py-1.5 text-sm font-medium transition',
                       active
@@ -63,15 +66,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           className="flex gap-1 overflow-x-auto border-t border-border/60 px-4 py-2 dark:border-white/[0.06] sm:hidden"
           aria-label="Principal móvil"
         >
-          {NAV.map((item) => {
+          {APP_SHELL_NAV.map((item) => {
             const active =
               item.href === '/'
-                ? pathname === '/'
-                : pathname === item.href || pathname.startsWith(`${item.href}/`);
+                ? pathForActive === '/'
+                : pathForActive === item.href || pathForActive.startsWith(`${item.href}/`);
             return (
               <Link
                 key={item.href}
                 href={item.href}
+                suppressHydrationWarning
                 className={cn(
                   'whitespace-nowrap rounded-full px-3 py-1.5 text-sm font-medium',
                   active

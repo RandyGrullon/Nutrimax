@@ -24,6 +24,7 @@ export type ClientAssignmentRow = {
   id: string;
   diet_id: string;
   diet_name: string;
+  meal_plan_name?: string | null;
   status: string;
   notes?: string | null;
   starts_on?: string | null;
@@ -322,6 +323,12 @@ export function ClientDietAssignmentsPanel({
                   <span className="ml-2 inline-block rounded-md bg-background px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                     {String(a.status)}
                   </span>
+                  {a.meal_plan_name?.trim() ? (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Plan alimenticio:{' '}
+                      <span className="font-medium text-foreground/90">{String(a.meal_plan_name)}</span>
+                    </p>
+                  ) : null}
                   {a.starts_on ? (
                     <p className="mt-1 text-xs text-muted-foreground">Inicio: {toDateInputValue(a.starts_on)}</p>
                   ) : null}

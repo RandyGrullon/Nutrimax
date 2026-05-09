@@ -4,7 +4,7 @@ import { DietPlanReadView } from '@/components/diets/DietPlanReadView';
 import { CmsBreadcrumb } from '@/components/cms/CmsBreadcrumb';
 import { Button } from '@/components/ui/Button';
 import { ApiError } from '@/lib/server/auth';
-import { getDietById, type DietRow } from '@/lib/server/diets-server';
+import { getDietById } from '@/lib/server/diets-server';
 import { normalizeDietPlan } from '@nutrimax/shared';
 
 function formatUpdated(iso: string | Date | undefined): string | null {
@@ -34,7 +34,7 @@ export async function generateMetadata({
 
 export default async function DietDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  let diet: DietRow;
+  let diet: Awaited<ReturnType<typeof getDietById>>;
   try {
     diet = await getDietById(id);
   } catch (e) {
@@ -70,6 +70,7 @@ export default async function DietDetailPage({ params }: { params: Promise<{ id:
         description={diet.description}
         plan={plan}
         updatedAtLabel={updatedLabel}
+        mealPlan={diet.meal_plan}
       />
     </div>
   );

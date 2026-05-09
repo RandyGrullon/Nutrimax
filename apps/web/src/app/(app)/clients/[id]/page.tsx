@@ -4,6 +4,7 @@ import { getClientById, getTimeline, type ClientRow } from '@/lib/server/clients
 import { listAssignmentsForClient } from '@/lib/server/assignments-server';
 import { listDiets } from '@/lib/server/diets-server';
 import { listClientProgressSnapshots } from '@/lib/server/progress-server';
+import { ClientDietPdfExportPanel } from '@/components/clients/ClientDietPdfExportPanel';
 import {
   ClientDietAssignmentsPanel,
   type ClientAssignmentRow,
@@ -18,6 +19,8 @@ import { CmsBreadcrumb } from '@/components/cms/CmsBreadcrumb';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { HelpInfoButton } from '@/components/ui/HelpInfoButton';
+import type { ClientDietPdfContext } from '@/lib/pdf/client-diet-report-model';
+import { extractClinicalGoalStep2 } from '@/lib/pdf/clinical-goal-snippet';
 
 function formatImcTwoDecimals(value: unknown): string {
   const n = typeof value === 'number' ? value : Number(value);
@@ -62,6 +65,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
     id: String(a.id),
     diet_id: String(a.diet_id),
     diet_name: String(a.diet_name),
+    meal_plan_name: a.meal_plan_name != null ? String(a.meal_plan_name) : null,
     status: String(a.status),
     notes: a.notes != null ? String(a.notes) : null,
     starts_on: a.starts_on != null ? String(a.starts_on) : null,
@@ -69,6 +73,46 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
   }));
 
   const timelineEvents = timeline as Record<string, unknown>[];
+
+  const clinicalGoal = extractClinicalGoalStep2(client.clinical_profile);
+
+  const pdfContext: ClientDietPdfContext = {
+    client: {
+      fullName: name,
+      email,
+      phone: client.phone != null && String(client.phone).trim() !== '' ? String(client.phone) : null,
+      age: client.age,
+      sex: client.sex != null && String(client.sex).trim() !== '' ? String(client.sex) : null,
+    },
+    clinicalGoal,
+    baseline: {
+      weightKg: client.weight_kg != null ? String(client.weight_kg) : null,
+      heightCm: client.height_cm != null ? String(client.height_cm) : null,
+      waistCm: client.waist_cm != null ? String(client.waist_cm) : null,
+      bodyFatPct: client.body_fat_pct != null ? String(client.body_fat_pct) : null,
+      goalWeightKg: client.goal_weight_kg != null ? String(client.goal_weight_kg) : null,
+      bmi: derived?.bmi != null ? formatImcTwoDecimals(derived.bmi) : null,
+      targetKcal: derived?.targetKcal != null ? String(derived.targetKcal) : null,
+    },
+    heightCm,
+    progressSnapshots: progressSnapshots.map((s) => ({
+      recorded_at: s.recorded_at,
+      period_month: s.period_month,
+      weight_kg: s.weight_kg,
+      waist_cm: s.waist_cm,
+      body_fat_pct: s.body_fat_pct,
+      note: s.note,
+    })),
+    assignments: assignmentRows.map((a) => ({
+      id: a.id,
+      diet_id: a.diet_id,
+      diet_name: a.diet_name,
+      meal_plan_name: a.meal_plan_name ?? null,
+      status: a.status,
+      starts_on: a.starts_on ?? null,
+      notes: a.notes ?? null,
+    })),
+  };
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6">
@@ -235,6 +279,26 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
             </CardHeader>
             <CardContent className="space-y-4 p-5">
               <ClientDietAssignmentsPanel clientId={id} diets={diets} assignments={assignmentRows} />
+            </CardContent>
+          </Card>
+
+          <Card className="overflow-hidden p-0">
+            <CardHeader className="flex flex-row items-center justify-between gap-2 border-b border-border bg-muted/20 px-5 py-4">
+              <div>
+                <CardTitle className="text-base">Informe PDF</CardTitle>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Exporta un documento para el paciente con evolución y plan alimenticio.
+                </p>
+              </div>
+              <HelpInfoButton title="Informe PDF" label="exportar pdf dieta" triggerClassName="p-1.5 shrink-0">
+                <p>
+                  Elige la asignación deseada y descarga un PDF con datos de la ficha, metas, seguimiento con gráficos y el
+                  contenido del plan dietético vinculado (incluye tomas del plan alimenticio cuando exista).
+                </p>
+              </HelpInfoButton>
+            </CardHeader>
+            <CardContent className="p-5">
+              <ClientDietPdfExportPanel pdfContext={pdfContext} />
             </CardContent>
           </Card>
         </aside>

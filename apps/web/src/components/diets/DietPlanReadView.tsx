@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import type { DietPlan } from '@nutrimax/shared';
+import type { DietPlan, MealPlanReadModel } from '@nutrimax/shared';
 import { dietPlanActivityLabels, dietPlanGoalLabels } from '@nutrimax/shared';
 
 function Section({
@@ -32,11 +32,13 @@ export function DietPlanReadView({
   description,
   plan,
   updatedAtLabel,
+  mealPlan,
 }: {
   name: string;
   description: string | null;
   plan: DietPlan;
   updatedAtLabel?: string | null;
+  mealPlan?: MealPlanReadModel | null;
 }) {
   const macroKcal = Math.round(plan.proteinG * 4 + plan.carbsG * 4 + plan.fatG * 9);
 
@@ -56,6 +58,42 @@ export function DietPlanReadView({
         <Row label="Principal" value={dietPlanGoalLabels[plan.goal]} />
         <Row label="Aclaración" value={plan.goalNotes || null} />
       </Section>
+
+      {mealPlan ? (
+        <Section title="Plan alimenticio vinculado">
+          <Row label="Nombre" value={mealPlan.name} />
+          <Row label="Rango para dietas" value={`${mealPlan.kcal_range_min}–${mealPlan.kcal_range_max} kcal/día`} />
+          <Row label="Energía estimada (porciones)" value={`~${mealPlan.estimated_kcal} kcal/día`} />
+          {mealPlan.description ? (
+            <Row label="Descripción" value={mealPlan.description} />
+          ) : null}
+          {mealPlan.items.length > 0 ? (
+            <div className="mt-2 space-y-2 rounded-lg border border-border/60 bg-background/60 p-3 dark:border-white/[0.06]">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Distribución por tomas
+              </p>
+              <ul className="space-y-2 text-sm">
+                {mealPlan.items.map((it, idx) => (
+                  <li key={`${it.order}-${idx}`} className="leading-relaxed text-foreground">
+                    <span className="font-medium">{it.meal}</span>
+                    {' · '}
+                    {it.food ? (
+                      <>
+                        {it.food.name} ({it.portion_grams} g) · ~
+                        {Math.round((it.food.kcal_per_100g * it.portion_grams) / 100)} kcal
+                      </>
+                    ) : (
+                      <>Alimento no disponible ({it.portion_grams} g)</>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">Este plan no tiene ítems por tomas registrados todavía.</p>
+          )}
+        </Section>
+      ) : null}
 
       <Section title="Energía y macronutrientes">
         <Row label="Kcal / día" value={plan.targetKcal} />

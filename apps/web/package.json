@@ -3,6 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
+    "clean": "node -e \"try { require('node:fs').rmSync('.next', { recursive: true, force: true }); } catch (e) { const err = /** @type {NodeJS.ErrnoException} */ (e); if (err.code !== 'ENOENT') throw err; }\"",
     "dev": "next dev",
     "dev:turbo": "next dev --turbopack",
     "prebuild": "pnpm --filter @nutrimax/shared build",
@@ -14,6 +15,7 @@
     "@ducanh2912/next-pwa": "^10.2.9",
     "@hookform/resolvers": "^3.9.1",
     "@nutrimax/shared": "workspace:*",
+    "@react-pdf/renderer": "^4.5.1",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.47.10",
     "framer-motion": "^11.15.0",

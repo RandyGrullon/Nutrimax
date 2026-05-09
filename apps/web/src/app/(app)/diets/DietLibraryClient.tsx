@@ -1,26 +1,21 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  BookOpen,
-  Eye,
-  PanelRightClose,
-  Pencil,
-  Plus,
-  Search,
-  Trash2,
-  UtensilsCrossed,
-} from 'lucide-react';
+import { BookOpen, Eye, PanelRightClose, Pencil, Plus, Trash2, UtensilsCrossed } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/cms/ConfirmDialog';
+import { DataTablePagination } from '@/components/cms/DataTablePagination';
+import { DataTableToolbar } from '@/components/cms/DataTableToolbar';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { HelpInfoButton } from '@/components/ui/HelpInfoButton';
 import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
 import { createDietBodySchema, defaultDietPlan, normalizeDietPlan, type DietPlan } from '@nutrimax/shared';
 import { DietPlanFormFields } from '@/components/diets/DietPlanFormFields';
+import { Select } from '@/components/ui/Select';
 import { parseApiError, showErrorToast, showSuccessToast } from '@/lib/errors';
 import { apiFetch, apiJsonArray } from '@/lib/api';
+import { clampPage, totalPagesFor } from '@/lib/paginate';
 import { cn } from '@/lib/cn';
 
 export type DietAdminRow = {
@@ -28,6 +23,14 @@ export type DietAdminRow = {
   name: string;
   description: string | null;
   updated_at: string;
+  meal_plan_name?: string | null;
+};
+
+type MealPlanListRow = {
+  id: string;
+  name: string;
+  kcal_range_min: number;
+  kcal_range_max: number;
 };
 
 function formatUpdated(iso: string | undefined): string {
@@ -55,11 +58,17 @@ function DietsAdmin({ embedded = false, openEditDietId = null, initialRows }: Di
   const [rows, setRows] = useState<DietAdminRow[]>(() => initialRows ?? []);
   const [loading, setLoading] = useState(initialRows === undefined);
   const [query, setQuery] = useState('');
+  const [mealPlanFilter, setMealPlanFilter] = useState<'all' | 'with' | 'without'>('all');
+  const [sortDiets, setSortDiets] = useState<'updated_desc' | 'name_asc'>('updated_desc');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [panel, setPanel] = useState<PanelMode>('closed');
   const [editId, setEditId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [plan, setPlan] = useState<DietPlan>(() => defaultDietPlan());
+  const [mealPlanId, setMealPlanId] = useState<string | null>(null);
+  const [mealPlans, setMealPlans] = useState<MealPlanListRow[]>([]);
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<DietAdminRow | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -76,11 +85,20 @@ function DietsAdmin({ embedded = false, openEditDietId = null, initialRows }: Di
     void load();
   }, [initialRows, load]);
 
+  useEffect(() => {
+    if (panel === 'closed') return;
+    void (async () => {
+      const data = await apiJsonArray<MealPlanListRow>('/meal-plans');
+      setMealPlans(data);
+    })();
+  }, [panel]);
+
   const openEdit = useCallback(async (row: DietAdminRow) => {
     setEditId(row.id);
     setName(row.name);
     setDescription(row.description ?? '');
     setPlan(defaultDietPlan());
+    setMealPlanId(null);
     setPanel('edit');
     try {
       const res = await apiFetch(`/diets/${row.id}`);
@@ -89,10 +107,12 @@ function DietsAdmin({ embedded = false, openEditDietId = null, initialRows }: Di
         name?: string;
         description?: string | null;
         plan?: unknown;
+        meal_plan_id?: string | null;
       };
       if (typeof full.name === 'string') setName(full.name);
       setDescription(full.description ?? '');
       setPlan(normalizeDietPlan(full.plan));
+      setMealPlanId(full.meal_plan_id ?? null);
     } catch {
       /* keep row snapshot */
     }
@@ -113,14 +133,50 @@ function DietsAdmin({ embedded = false, openEditDietId = null, initialRows }: Di
   }, [loading, openEditDietId, rows, openEdit]);
 
   const filtered = useMemo(() => {
+    let list = rows;
     const q = query.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter((r) => {
-      const rowName = (r.name ?? '').toLowerCase();
-      const desc = (r.description ?? '').toLowerCase();
-      return rowName.includes(q) || desc.includes(q);
-    });
-  }, [rows, query]);
+    if (q) {
+      list = list.filter((r) => {
+        const rowName = (r.name ?? '').toLowerCase();
+        const desc = (r.description ?? '').toLowerCase();
+        const mp = (r.meal_plan_name ?? '').toLowerCase();
+        return rowName.includes(q) || desc.includes(q) || mp.includes(q);
+      });
+    }
+    if (mealPlanFilter === 'with') {
+      list = list.filter((r) => Boolean(r.meal_plan_name?.trim()));
+    }
+    if (mealPlanFilter === 'without') {
+      list = list.filter((r) => !r.meal_plan_name?.trim());
+    }
+    return list;
+  }, [rows, query, mealPlanFilter]);
+
+  const sortedRows = useMemo(() => {
+    const arr = [...filtered];
+    if (sortDiets === 'name_asc') {
+      return arr.sort((a, b) => a.name.localeCompare(b.name, 'es'));
+    }
+    return arr.sort(
+      (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
+    );
+  }, [filtered, sortDiets]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [query, mealPlanFilter, sortDiets]);
+
+  const totalPages = totalPagesFor(sortedRows.length, pageSize);
+  const safePage = clampPage(page, totalPages);
+
+  useEffect(() => {
+    if (page !== safePage) setPage(safePage);
+  }, [page, safePage]);
+
+  const pageSlice = useMemo(() => {
+    const start = (safePage - 1) * pageSize;
+    return sortedRows.slice(start, start + pageSize);
+  }, [sortedRows, safePage, pageSize]);
 
   const patchPlan = useCallback((patch: Partial<DietPlan>) => {
     setPlan((prev) => ({ ...prev, ...patch }));
@@ -131,6 +187,7 @@ function DietsAdmin({ embedded = false, openEditDietId = null, initialRows }: Di
     setName('');
     setDescription('');
     setPlan(defaultDietPlan());
+    setMealPlanId(null);
     setPanel('create');
   }
 
@@ -138,6 +195,7 @@ function DietsAdmin({ embedded = false, openEditDietId = null, initialRows }: Di
     setPanel('closed');
     setEditId(null);
     setPlan(defaultDietPlan());
+    setMealPlanId(null);
   }
 
   function closePanel() {
@@ -150,7 +208,12 @@ function DietsAdmin({ embedded = false, openEditDietId = null, initialRows }: Di
     e.preventDefault();
     const n = name.trim();
     const desc = description.trim();
-    const parsed = createDietBodySchema.safeParse({ name: n, description: desc, plan });
+    const parsed = createDietBodySchema.safeParse({
+      name: n,
+      description: desc,
+      plan,
+      meal_plan_id: mealPlanId,
+    });
     if (!parsed.success) {
       const first = parsed.error.issues[0]?.message ?? 'Revisa los campos del plan.';
       showErrorToast(first);
@@ -232,21 +295,42 @@ function DietsAdmin({ embedded = false, openEditDietId = null, initialRows }: Di
             </p>
           </div>
         ) : null}
-        <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center lg:ml-auto lg:w-auto lg:flex-1 lg:justify-end">
-          <div className="relative min-w-[200px] flex-1 lg:max-w-md">
-            <Search
-              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-              aria-hidden
-            />
-            <Input
-              className="pl-9"
-              placeholder="Buscar por nombre o descripción…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              aria-label="Buscar dietas"
-            />
-          </div>
-          <div className="flex shrink-0 items-center gap-1">
+        <div className="flex w-full flex-col gap-3 lg:ml-auto lg:w-auto lg:flex-1 lg:justify-end">
+          <DataTableToolbar
+            searchPlaceholder="Buscar por nombre, descripción o plan alimenticio…"
+            searchValue={query}
+            onSearchChange={setQuery}
+            searchAriaLabel="Buscar dietas"
+            pageSize={pageSize}
+            onPageSizeChange={(n) => {
+              setPageSize(n);
+              setPage(1);
+            }}
+            filters={
+              <>
+                <Select
+                  className="min-w-[10rem]"
+                  value={mealPlanFilter}
+                  onChange={(e) => setMealPlanFilter(e.target.value as typeof mealPlanFilter)}
+                  aria-label="Filtrar por plan alimenticio"
+                >
+                  <option value="all">Plan: todos</option>
+                  <option value="with">Con plan alimenticio</option>
+                  <option value="without">Sin plan alimenticio</option>
+                </Select>
+                <Select
+                  className="min-w-[10rem]"
+                  value={sortDiets}
+                  onChange={(e) => setSortDiets(e.target.value as typeof sortDiets)}
+                  aria-label="Ordenar dietas"
+                >
+                  <option value="updated_desc">Actualizado · reciente</option>
+                  <option value="name_asc">Nombre A → Z</option>
+                </Select>
+              </>
+            }
+          />
+          <div className="flex shrink-0 items-center justify-end gap-1">
             <HelpInfoButton title="Tabla de dietas" label="tabla dietas" triggerClassName="p-2">
               <p>
                 Usa la lupa para filtrar. Los botones <strong className="text-foreground">Editar</strong> y{' '}
@@ -280,22 +364,25 @@ function DietsAdmin({ embedded = false, openEditDietId = null, initialRows }: Di
         <div className="overflow-hidden rounded-2xl border border-border/70 bg-card shadow-card dark:border-white/[0.06] dark:shadow-card-dark">
           <div className="flex items-center justify-between border-b border-border/70 bg-muted/25 px-4 py-3 dark:border-white/[0.06]">
             <span className="text-xs font-medium text-muted-foreground">
-              {filtered.length} de {rows.length} ítems
+              {sortedRows.length === rows.length
+                ? `${rows.length} ítems`
+                : `${sortedRows.length} coincidencias · ${rows.length} en biblioteca`}
             </span>
             <UtensilsCrossed className="h-4 w-4 text-muted-foreground" aria-hidden />
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] border-collapse text-left text-sm">
+            <table className="w-full min-w-[820px] border-collapse text-left text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/20 text-xs uppercase tracking-wide text-muted-foreground">
                   <th className="px-4 py-3 font-medium">Nombre</th>
+                  <th className="hidden px-4 py-3 font-medium xl:table-cell">Plan alimenticio</th>
                   <th className="hidden px-4 py-3 font-medium lg:table-cell">Descripción</th>
                   <th className="hidden px-4 py-3 font-medium md:table-cell">Actualizado</th>
                   <th className="px-4 py-3 text-right font-medium">Acciones</th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((row) => (
+                {pageSlice.map((row) => (
                   <tr
                     key={row.id}
                     className="border-b border-border/80 transition last:border-0 hover:bg-muted/15"
@@ -305,6 +392,12 @@ function DietsAdmin({ embedded = false, openEditDietId = null, initialRows }: Di
                       <p className="mt-1 line-clamp-2 text-xs text-muted-foreground lg:hidden">
                         {row.description ?? '—'}
                       </p>
+                      <p className="mt-1 text-[11px] text-muted-foreground xl:hidden">
+                        Plan: {row.meal_plan_name?.trim() ? row.meal_plan_name : '—'}
+                      </p>
+                    </td>
+                    <td className="hidden max-w-[14rem] px-4 py-3 text-sm text-muted-foreground xl:table-cell">
+                      <span className="line-clamp-2">{row.meal_plan_name?.trim() ? row.meal_plan_name : '—'}</span>
                     </td>
                     <td className="hidden max-w-md px-4 py-3 text-muted-foreground lg:table-cell">
                       <span className="line-clamp-2">{row.description ?? '—'}</span>
@@ -337,10 +430,19 @@ function DietsAdmin({ embedded = false, openEditDietId = null, initialRows }: Di
               </tbody>
             </table>
           </div>
-          {filtered.length === 0 && query.trim() ? (
+          {sortedRows.length === 0 && (query.trim() || mealPlanFilter !== 'all') ? (
             <p className="border-t border-border px-4 py-6 text-center text-sm text-muted-foreground">
-              No hay resultados para «{query.trim()}».
+              No hay resultados con los filtros actuales.
             </p>
+          ) : null}
+          {sortedRows.length > 0 ? (
+            <DataTablePagination
+              page={safePage}
+              pageSize={pageSize}
+              totalFiltered={sortedRows.length}
+              datasetTotal={rows.length}
+              onPageChange={setPage}
+            />
           ) : null}
         </div>
       )}
@@ -388,6 +490,37 @@ function DietsAdmin({ embedded = false, openEditDietId = null, initialRows }: Di
                   El plan nutricional detallado va en los bloques siguientes (objetivo, kcal, macros, tomas, textos al
                   paciente).
                 </p>
+                <label className="flex flex-col gap-1.5 text-sm font-medium text-foreground">
+                  Plan alimenticio (opcional)
+                  <Select
+                    value={mealPlanId ?? ''}
+                    onChange={(e) => setMealPlanId(e.target.value || null)}
+                    aria-label="Plan alimenticio vinculado"
+                  >
+                    <option value="">Sin plan alimenticio</option>
+                    {[...mealPlans]
+                      .sort((a, b) => {
+                        const ta = plan.targetKcal >= a.kcal_range_min && plan.targetKcal <= a.kcal_range_max ? 0 : 1;
+                        const tb = plan.targetKcal >= b.kcal_range_min && plan.targetKcal <= b.kcal_range_max ? 0 : 1;
+                        return ta - tb || a.name.localeCompare(b.name);
+                      })
+                      .map((mp) => {
+                        const inRange =
+                          plan.targetKcal >= mp.kcal_range_min && plan.targetKcal <= mp.kcal_range_max;
+                        return (
+                          <option key={mp.id} value={mp.id}>
+                            {mp.name} ({mp.kcal_range_min}–{mp.kcal_range_max} kcal)
+                            {inRange ? ' · encaja en rango' : ''}
+                          </option>
+                        );
+                      })}
+                  </Select>
+                  <span className="text-xs font-normal text-muted-foreground">
+                    Objetivo actual de la dieta: <strong className="text-foreground">{plan.targetKcal} kcal/día</strong>.
+                    El plan debe incluir ese objetivo en su rango y las porciones no deben superarlo en exceso (validación
+                    al guardar).
+                  </span>
+                </label>
                 <DietPlanFormFields plan={plan} onPatch={patchPlan} />
               </div>
               <div className="mt-8 flex gap-2 border-t border-border pt-5">

@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
-import { getDashboardStats } from '@/lib/server/dashboard-stats';
+import { getDashboardHomeData } from '@/lib/server/dashboard-stats';
 import { HomeDashboard } from '@/components/home/HomeDashboard';
 
 export default async function HomePage() {
@@ -8,9 +8,9 @@ export default async function HomePage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const stats = await getDashboardStats();
+  const { stats, recentClients } = await getDashboardHomeData();
 
   const userProps = user ? { email: user.email ?? null } : null;
 
-  return <HomeDashboard user={userProps} stats={stats} />;
+  return <HomeDashboard user={userProps} stats={stats} recentClients={recentClients} />;
 }

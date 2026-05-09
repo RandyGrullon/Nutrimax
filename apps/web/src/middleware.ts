@@ -5,6 +5,13 @@ import { getSupabaseCookieOptions } from '@/lib/supabase/session-config';
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
+  /** Para que el layout shell hidrate igual que el SSR (clases «activas» del nav). */
+  function withPathHeader(): Headers {
+    const h = new Headers(request.headers);
+    h.set('x-nutrimax-pathname', pathname);
+    return h;
+  }
+
   /** Nunca interceptar activos de Next, API ni estáticos públicos (evita 404 en chunks/CSS en dev). */
   if (
     pathname.startsWith('/_next/') ||
@@ -17,13 +24,13 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next({ request: { headers: request.headers } });
   }
 
-  let response = NextResponse.next({ request: { headers: request.headers } });
+  let response = NextResponse.next({ request: { headers: withPathHeader() } });
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key =
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   if (!url || !key) {
-    return response;
+    return NextResponse.next({ request: { headers: withPathHeader() } });
   }
 
   const supabase = createServerClient(url, key, {
@@ -36,7 +43,7 @@ export async function middleware(request: NextRequest) {
         cookiesToSet.forEach(({ name, value }) => {
           request.cookies.set(name, value);
         });
-        response = NextResponse.next({ request: { headers: request.headers } });
+        response = NextResponse.next({ request: { headers: withPathHeader() } });
         cookiesToSet.forEach(({ name, value, options }) => {
           response.cookies.set(name, value, options);
         });
