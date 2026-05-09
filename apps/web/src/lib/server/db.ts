@@ -1,5 +1,5 @@
 import { Pool, type QueryResultRow } from 'pg';
-import { resolveDatabaseUrl } from '@/lib/server/resolve-database-url';
+import { isSupabasePostgresUrl, resolveDatabaseUrl } from '@/lib/server/resolve-database-url';
 
 declare global {
   // eslint-disable-next-line no-var
@@ -8,9 +8,15 @@ declare global {
 
 function getPool(): Pool {
   if (!globalThis.__nutrimaxPgPool) {
+    const connectionString = resolveDatabaseUrl();
+    const ssl = isSupabasePostgresUrl(connectionString) ? { rejectUnauthorized: false } : undefined;
+
     globalThis.__nutrimaxPgPool = new Pool({
-      connectionString: resolveDatabaseUrl(),
-      max: process.env.VERCEL ? 5 : 10,
+      connectionString,
+      max: process.env.VERCEL ? 4 : 10,
+      idleTimeoutMillis: process.env.VERCEL ? 12_000 : 30_000,
+      connectionTimeoutMillis: 20_000,
+      ssl,
     });
   }
   return globalThis.__nutrimaxPgPool;
