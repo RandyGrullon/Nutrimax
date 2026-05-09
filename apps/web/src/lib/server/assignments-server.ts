@@ -59,9 +59,21 @@ export async function assignDiet(body: {
   return rows[0];
 }
 
-export async function listAssignmentsForClient(clientId: string) {
+export type ClientAssignmentDbRow = {
+  id: string;
+  client_id: string;
+  diet_id: string;
+  diet_name: string;
+  status: string;
+  notes: string | null;
+  starts_on: string | null;
+  created_at: Date | string;
+  ends_on?: string | null;
+};
+
+export async function listAssignmentsForClient(clientId: string): Promise<ClientAssignmentDbRow[]> {
   await getClientById(clientId);
-  return dbQuery(
+  return dbQuery<ClientAssignmentDbRow>(
     `SELECT a.*, d.name AS diet_name
        FROM client_diet_assignments a
        JOIN diets d ON d.id = a.diet_id

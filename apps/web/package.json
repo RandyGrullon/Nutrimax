@@ -19,7 +19,7 @@
     "framer-motion": "^11.15.0",
     "lucide-react": "^0.468.0",
     "next": "^15.1.2",
-    "pg": "^8.13.1",
+    "postgres": "^3.4.9",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-hook-form": "^7.54.1",
@@ -28,7 +28,6 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
-    "@types/pg": "^8.11.10",
     "@types/react": "^19.0.1",
     "@types/react-dom": "^19.0.2",
     "autoprefixer": "^10.4.20",
