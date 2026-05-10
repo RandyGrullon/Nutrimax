@@ -3,6 +3,7 @@
 import { Toaster } from 'sonner';
 import { GlobalLoadingBar } from '@/components/GlobalLoadingBar';
 import { ThemeProvider, useTheme } from '@/components/theme/ThemeProvider';
+import { FontSizeProvider } from '@/components/theme/FontSizeProvider';
 
 function ToasterWithTheme() {
   const { resolvedTheme } = useTheme();
@@ -17,12 +18,14 @@ function ToasterWithTheme() {
   );
 }
 
-export function Providers({ children }: { children: React.ReactNode }) {
+export function Providers({ children }: { children: ReactNode }) {
   return (
     <ThemeProvider>
-      <GlobalLoadingBar />
-      {children}
-      <ToasterWithTheme />
+      <FontSizeProvider>
+        <GlobalLoadingBar />
+        {children}
+        <ToasterWithTheme />
+      </FontSizeProvider>
     </ThemeProvider>
   );
 }
