@@ -1,13 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { 
   ArrowRight, Sparkles, Zap, Users, UtensilsCrossed, 
-  Link2, Salad, Apple, UserPlus, ChevronRight 
+  Link2, Salad, Apple, type LucideIcon 
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { PwaInstallButton } from '@/components/pwa/PwaInstallButton';
 import { HelpInfoButton } from '@/components/ui/HelpInfoButton';
 import type { DashboardStats } from '@/lib/dashboard-stats-types';
@@ -20,7 +18,13 @@ import { cn } from '@/lib/cn';
  * que el servidor tenga que coordinar múltiples micro-módulos de cliente.
  */
 
-function StatCard({ icon: Icon, label, value, hint, className }: any) {
+function StatCard({ icon: Icon, label, value, hint, className }: { 
+  icon: LucideIcon; 
+  label: string; 
+  value: number; 
+  hint: string; 
+  className?: string; 
+}) {
   return (
     <div className={cn(
       'relative overflow-hidden rounded-2xl border border-border/70 bg-card/95 p-4 shadow-card backdrop-blur-sm dark:border-white/[0.06] dark:bg-card/70',

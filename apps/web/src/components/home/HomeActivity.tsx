@@ -1,9 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { ChevronRight, LayoutDashboard, ClipboardList, CalendarClock, ArrowRight } from 'lucide-react';
+import { ChevronRight, ClipboardList, CalendarClock } from 'lucide-react';
 import type { DashboardRecentClient } from '@/lib/dashboard-stats-types';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 
 const workflowSteps = [
   { step: 1, title: 'Nutrición', href: '/nutrition' },

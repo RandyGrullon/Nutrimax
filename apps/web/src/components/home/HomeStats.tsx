@@ -1,6 +1,6 @@
 'use client';
 
-import { Users, UtensilsCrossed, Link2, Salad, Apple } from 'lucide-react';
+import { Users, UtensilsCrossed, Link2, Salad, Apple, type LucideIcon } from 'lucide-react';
 import type { DashboardStats } from '@/lib/dashboard-stats-types';
 import { cn } from '@/lib/cn';
 
@@ -11,7 +11,7 @@ function StatCard({
   hint,
   className,
 }: {
-  icon: any;
+  icon: LucideIcon;
   label: string;
   value: number;
   hint: string;

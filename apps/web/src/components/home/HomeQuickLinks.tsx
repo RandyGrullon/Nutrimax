@@ -1,11 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { Users, UserPlus, Salad, UtensilsCrossed, ArrowRight } from 'lucide-react';
+import { Users, UserPlus, Salad, UtensilsCrossed, ArrowRight, type LucideIcon } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
-import { cn } from '@/lib/cn';
 
-function QuickLink({ href, icon: Icon, title, description }: { href: string; icon: any; title: string; description: string }) {
+function QuickLink({ href, icon: Icon, title, description }: { href: string; icon: LucideIcon; title: string; description: string }) {
   return (
     <Link href={href} className="group block rounded-2xl transition hover:opacity-[0.98]">
       <Card className="h-full border-border/70 p-0 transition group-hover:border-brand-500/40 group-hover:shadow-md dark:border-white/[0.06] dark:group-hover:border-brand-400/35">
