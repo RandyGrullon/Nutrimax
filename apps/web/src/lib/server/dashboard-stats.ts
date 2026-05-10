@@ -24,25 +24,37 @@ async function fetchDashboardHomeDataUncached(): Promise<{
   recentClients: DashboardRecentClient[];
 }> {
   try {
-    const [clients, diets, assignsActive, mealPlans, foods, recentRows] = await Promise.all([
-      dbQueryOne<{ c: string }>(`SELECT count(*)::text AS c FROM clients`),
-      dbQueryOne<{ c: string }>(`SELECT count(*)::text AS c FROM diets`),
-      dbQueryOne<{ c: string }>(
-        `SELECT count(*)::text AS c FROM client_diet_assignments WHERE status = 'active'`,
-      ),
-      dbQueryOne<{ c: string }>(`SELECT count(*)::text AS c FROM meal_plans`),
-      dbQueryOne<{ c: string }>(`SELECT count(*)::text AS c FROM foods`),
-      dbQuery<{ id: string; full_name: string; updated_at: Date }>(
-        `SELECT id, full_name, updated_at FROM clients ORDER BY updated_at DESC LIMIT 6`,
-      ),
-    ]);
+    /* Single round-trip: CTEs compute all counts and recent clients in one query.
+     * The first row contains the aggregated counts; the rest are recent clients. */
+    type StatsRow = {
+      clients_count: string;
+      diets_count: string;
+      active_assignments_count: string;
+      meal_plans_count: string;
+      foods_count: string;
+    };
+    type RecentRow = { id: string; full_name: string; updated_at: Date };
+
+    const statsRow = await dbQueryOne<StatsRow>(
+      `SELECT
+         (SELECT count(*) FROM clients)::text              AS clients_count,
+         (SELECT count(*) FROM diets)::text                AS diets_count,
+         (SELECT count(*) FROM client_diet_assignments
+          WHERE status = 'active')::text                   AS active_assignments_count,
+         (SELECT count(*) FROM meal_plans)::text           AS meal_plans_count,
+         (SELECT count(*) FROM foods)::text                AS foods_count`,
+    );
+
+    const recentRows = await dbQuery<RecentRow>(
+      `SELECT id, full_name, updated_at FROM clients ORDER BY updated_at DESC LIMIT 6`,
+    );
 
     const stats: DashboardStats = {
-      clientsCount: Number(clients?.c ?? 0),
-      dietsCount: Number(diets?.c ?? 0),
-      activeAssignmentsCount: Number(assignsActive?.c ?? 0),
-      mealPlansCount: Number(mealPlans?.c ?? 0),
-      foodsCount: Number(foods?.c ?? 0),
+      clientsCount: Number(statsRow?.clients_count ?? 0),
+      dietsCount: Number(statsRow?.diets_count ?? 0),
+      activeAssignmentsCount: Number(statsRow?.active_assignments_count ?? 0),
+      mealPlansCount: Number(statsRow?.meal_plans_count ?? 0),
+      foodsCount: Number(statsRow?.foods_count ?? 0),
     };
 
     const recentClients: DashboardRecentClient[] = recentRows.map((r) => ({

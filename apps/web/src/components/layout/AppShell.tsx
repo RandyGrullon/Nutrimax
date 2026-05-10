@@ -20,7 +20,10 @@ export function AppShell({
   children: React.ReactNode;
 }) {
   return (
-    <>
+    <div
+      className="relative flex min-h-dvh flex-col bg-background nb-surface-glow"
+      suppressHydrationWarning
+    >
       <header className="sticky top-0 z-40 border-b border-border/60 bg-background/90 backdrop-blur-md supports-[backdrop-filter]:bg-background/75 dark:border-white/[0.06]">
         <div className="mx-auto flex h-[3.25rem] max-w-6xl items-center justify-between gap-4 px-4">
           {navLeading}
@@ -32,13 +35,10 @@ export function AppShell({
         </div>
         {navMobile}
       </header>
-      <div
-        className="relative flex min-h-0 flex-1 flex-col bg-background nb-surface-glow"
-        suppressHydrationWarning
-      >
+      <div className="relative flex min-h-0 flex-1 flex-col">
         <NavRoutePrefetcher />
         <div className="flex-1">{children}</div>
       </div>
-    </>
+    </div>
   );
 }

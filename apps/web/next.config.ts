@@ -37,12 +37,16 @@ const withPWA = withPWAInit({
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  /** lucide-react: dejar que Next 15 lo maneje nativamente. */
   transpilePackages: ['@nutrimax/shared'],
   /** Evita vendor-chunks rotos de Supabase tras cambios de lockfile o builds parciales (pnpm + Webpack). */
   serverExternalPackages: ['@supabase/supabase-js', '@supabase/ssr', '@supabase/auth-js'],
   experimental: {
-    /** Menos JS por ruta al importar solo los iconos usados. */
-    optimizePackageImports: ['lucide-react'],
+    /**
+     * No usar `optimizePackageImports` para lucide-react: en Next 15 + Webpack suele romper el factory
+     * del chunk cliente (`Cannot read properties of undefined (reading 'call')`) en páginas con muchos iconos.
+     */
+    optimizePackageImports: [],
     /**
      * Cache en el cliente para navegaciones repetidas (volver a una vista reciente).
      * Las APIs siguen validando sesión; datos muy sensibles pueden seguir usando revalidate/reload donde haga falta.

@@ -5,7 +5,9 @@
 export const APP_SHELL_NAV = [
   { href: '/', label: 'Inicio' },
   { href: '/clients', label: 'Pacientes' },
-  { href: '/nutrition', label: 'Nutrición' },
+  /** Solo `/nutrition`: si coincidiera un prefijo, `/nutrition/plans` marcaría también Nutrición. */
+  { href: '/nutrition', label: 'Nutrición', exact: true },
+  { href: '/nutrition/plans', label: 'Plan alimenticio' },
   { href: '/diets', label: 'Dietas' },
 ] as const;
 

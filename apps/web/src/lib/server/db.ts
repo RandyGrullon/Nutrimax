@@ -23,7 +23,8 @@ function getSql(): ReturnType<typeof postgres> {
     globalThis.__nutrimaxSql = postgres(connectionString, {
       max: process.env.VERCEL ? 1 : 10,
       idle_timeout: process.env.VERCEL ? 12 : 30,
-      connect_timeout: 30,
+      max_lifetime: process.env.VERCEL ? 60 : 300,
+      connect_timeout: process.env.VERCEL ? 10 : 20,
       prepare: supabase ? false : true,
       ssl: supabase ? { rejectUnauthorized: false } : false,
       onnotice: () => {},

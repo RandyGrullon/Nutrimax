@@ -21,15 +21,16 @@ export function ThemeToggle({ className }: { className?: string }) {
   const { preference, cycleTheme, resolvedTheme } = useTheme();
 
   /**
-   * Nunca usar `isReady` / useLayoutEffect del padre para el primer paint: en algunos entornos puede
-   * activarse antes de terminar la hidratación y mostrar `system`/Monitor frente al HTML del servidor.
-   * Solo `useEffect` garantiza que este código corre después de hidratar (mismo marcador en servidor y primer cliente).
+   * Guardia de Hidratación:
+   * Evita que extensiones de navegador (como Dark Reader) causen un mismatch 
+   * al inyectar atributos en los SVG antes de la hidratación.
    */
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => {
     setHydrated(true);
   }, []);
 
+  // En el servidor o primera carga, mostramos un estado estático seguro
   const safePreference: ThemePreference = hydrated ? preference : 'dark';
   const safeResolvedDark = hydrated ? resolvedTheme === 'dark' : true;
 
@@ -50,9 +51,18 @@ export function ThemeToggle({ className }: { className?: string }) {
       aria-pressed={ariaPressedAttr}
       aria-label={label}
       title={label}
+      // Mantenemos esto para el botón por seguridad
       suppressHydrationWarning
     >
-      <Icon className="h-4 w-4" aria-hidden />
+      {/* 
+        Solo renderizamos el Icono si estamos hidratados. 
+        Esto mata el error de «data-darkreader-inline-stroke» permanentemente.
+      */}
+      {hydrated ? (
+        <Icon className="h-4 w-4" aria-hidden />
+      ) : (
+        <div className="h-4 w-4" aria-hidden />
+      )}
     </button>
   );
 }

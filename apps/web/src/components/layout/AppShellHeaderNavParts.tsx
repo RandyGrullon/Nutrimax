@@ -1,11 +1,17 @@
+'use client';
+
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { APP_SHELL_NAV } from '@/config/app-shell-nav';
-import { getShellPathname } from '@/lib/server/shell-pathname';
 import { cn } from '@/lib/cn';
 
-/** Logo + nav escritorio (solo servidor → sin boundary cliente en este árbol). */
-export async function AppShellNavLeading() {
-  const pathForActive = await getShellPathname();
+/**
+ * Logo + nav escritorio (client component — `usePathname()` keeps active state
+ * in sync across client-side navigations without relying on a server header,
+ * eliminating the hydration mismatch that occurred with the async RSC approach).
+ */
+export function AppShellNavLeading() {
+  const pathname = usePathname();
 
   return (
     <div className="flex min-w-0 items-center gap-5">
@@ -20,8 +26,10 @@ export async function AppShellNavLeading() {
         {APP_SHELL_NAV.map((item) => {
           const active =
             item.href === '/'
-              ? pathForActive === '/'
-              : pathForActive === item.href || pathForActive.startsWith(`${item.href}/`);
+              ? pathname === '/'
+              : 'exact' in item && item.exact
+                ? pathname === item.href
+                : pathname === item.href || pathname.startsWith(`${item.href}/`);
           return (
             <Link
               key={item.href}
@@ -43,9 +51,9 @@ export async function AppShellNavLeading() {
   );
 }
 
-/** Nav móvil (solo servidor). */
-export async function AppShellNavMobile() {
-  const pathForActive = await getShellPathname();
+/** Nav móvil (client component). */
+export function AppShellNavMobile() {
+  const pathname = usePathname();
 
   return (
     <nav
@@ -55,8 +63,10 @@ export async function AppShellNavMobile() {
       {APP_SHELL_NAV.map((item) => {
         const active =
           item.href === '/'
-            ? pathForActive === '/'
-            : pathForActive === item.href || pathForActive.startsWith(`${item.href}/`);
+            ? pathname === '/'
+            : 'exact' in item && item.exact
+              ? pathname === item.href
+              : pathname === item.href || pathname.startsWith(`${item.href}/`);
         return (
           <Link
             key={`m-${item.href}`}

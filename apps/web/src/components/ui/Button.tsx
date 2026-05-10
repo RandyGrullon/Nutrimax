@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 import { forwardRef, type ButtonHTMLAttributes } from 'react';
 import { cn } from '@/lib/cn';

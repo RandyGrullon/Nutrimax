@@ -127,13 +127,19 @@ export async function addClientProgressSnapshot(
   return snap;
 }
 
-/** Comprueba si la tabla existe (despliegues sin migración 002). */
+/** Cached result: once the table exists it won't disappear, so we cache it per cold start. */
+let _progressTableExistsCache: boolean | undefined;
+
+/** Comprueba si la tabla existe (despliegues sin migración 002). Cacheado en memoria tras el primer check. */
 export async function progressTableExists(): Promise<boolean> {
+  if (_progressTableExistsCache === true) return true;
   const row = await dbQueryOne<{ exists: boolean }>(
     `SELECT EXISTS (
        SELECT 1 FROM information_schema.tables
        WHERE table_schema = 'public' AND table_name = 'client_progress_snapshots'
      ) AS exists`,
   );
-  return row?.exists === true;
+  const exists = row?.exists === true;
+  if (exists) _progressTableExistsCache = true;
+  return exists;
 }

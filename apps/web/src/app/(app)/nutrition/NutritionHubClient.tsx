@@ -62,8 +62,8 @@ function tabsMeta(id: TabId): { label: string; icon: typeof Apple } {
   }
 }
 
-export function NutritionHubClient() {
-  const [tab, setTab] = useState<TabId>('categories');
+export function NutritionHubClient({ initialTab = 'categories' }: { initialTab?: TabId } = {}) {
+  const [tab, setTab] = useState<TabId>(initialTab);
   const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState<CategoryRow[]>([]);
   const [foods, setFoods] = useState<FoodRow[]>([]);

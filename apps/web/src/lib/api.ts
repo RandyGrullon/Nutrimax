@@ -3,29 +3,54 @@ import { ensureArray } from '@/lib/ensure-array';
 import { toApiPath } from '@/lib/api-path';
 import { withRequestLoading } from '@/lib/request-loading';
 
+/**
+ * Cached access token with expiry to avoid calling getSession() on every
+ * single API request. getSession() is local (JWT from cookie) but still
+ * allocates and parses the token each time. This cache avoids that overhead
+ * for rapid sequential/parallel requests within the same interaction.
+ */
+let _cachedToken: string | null = null;
+let _tokenExpiresAt = 0;
+
+async function getAccessToken(): Promise<string | null> {
+  const now = Date.now();
+  if (_cachedToken && _tokenExpiresAt > now) return _cachedToken;
+
+  const supabase = createClient();
+  const { data } = await supabase.auth.getSession();
+  const session = data.session;
+  if (!session) {
+    _cachedToken = null;
+    _tokenExpiresAt = 0;
+    return null;
+  }
+  _cachedToken = session.access_token;
+  // Cache until 60s before expiry (session.expires_at is in seconds)
+  _tokenExpiresAt = (session.expires_at ?? 0) * 1000 - 60_000;
+  return _cachedToken;
+}
+
 export async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
   return withRequestLoading(async () => {
-    const supabase = createClient();
-    const baseHeaders = new Headers(init.headers);
-    baseHeaders.set('Content-Type', 'application/json');
+    const headers = new Headers(init.headers);
+    headers.set('Content-Type', 'application/json');
 
-    async function accessToken(): Promise<string | null> {
-      const { data } = await supabase.auth.getSession();
-      return data.session?.access_token ?? null;
-    }
+    const token = await getAccessToken();
+    if (token) headers.set('Authorization', `Bearer ${token}`);
 
-    async function doFetch(): Promise<Response> {
-      const token = await accessToken();
-      const headers = new Headers(baseHeaders);
-      if (token) headers.set('Authorization', `Bearer ${token}`);
-      const url = toApiPath(path);
-      return fetch(url, { ...init, headers });
-    }
+    const url = toApiPath(path);
+    let res = await fetch(url, { ...init, headers });
 
-    let res = await doFetch();
     if (res.status === 401) {
-      await supabase.auth.refreshSession();
-      res = await doFetch();
+      // Token expired — refresh and retry once
+      const supabase = createClient();
+      const { data } = await supabase.auth.refreshSession();
+      if (data.session) {
+        _cachedToken = data.session.access_token;
+        _tokenExpiresAt = (data.session.expires_at ?? 0) * 1000 - 60_000;
+        headers.set('Authorization', `Bearer ${data.session.access_token}`);
+      }
+      res = await fetch(url, { ...init, headers });
     }
 
     if (
@@ -33,6 +58,8 @@ export async function apiFetch(path: string, init: RequestInit = {}): Promise<Re
       typeof window !== 'undefined' &&
       !window.location.pathname.startsWith('/login')
     ) {
+      _cachedToken = null;
+      _tokenExpiresAt = 0;
       window.location.assign('/login');
     }
 

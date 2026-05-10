@@ -37,20 +37,27 @@ function clientHeightCm(client: Pick<ClientRow, 'height_cm'>): number | null {
 
 export default async function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+
+  /* Fetch ALL data in parallel — no sequential dependency needed.
+   * getClientById will throw ApiError(404) if not found, caught below. */
   let client: ClientRow;
+  let timelineRaw: unknown[];
+  let assignments: Awaited<ReturnType<typeof listAssignmentsForClient>>;
+  let dietList: Awaited<ReturnType<typeof listDiets>>;
+  let progressRows: Awaited<ReturnType<typeof listClientProgressSnapshots>>;
+
   try {
-    client = await getClientById(id);
+    [client, timelineRaw, assignments, dietList, progressRows] = await Promise.all([
+      getClientById(id),
+      getTimeline(id),
+      listAssignmentsForClient(id),
+      listDiets(),
+      listClientProgressSnapshots(id),
+    ]);
   } catch (e) {
     if (e instanceof ApiError && e.status === 404) notFound();
     throw e;
   }
-
-  const [timeline, assignments, dietList, progressRows] = await Promise.all([
-    getTimeline(id),
-    listAssignmentsForClient(id),
-    listDiets(),
-    listClientProgressSnapshots(id),
-  ]);
 
   const diets = dietList.map((d) => ({ id: d.id, name: d.name }));
 
@@ -72,7 +79,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
     created_at: a.created_at != null ? String(a.created_at) : null,
   }));
 
-  const timelineEvents = timeline as Record<string, unknown>[];
+  const timelineEvents = timelineRaw as Record<string, unknown>[];
 
   const clinicalGoal = extractClinicalGoalStep2(client.clinical_profile);
 
