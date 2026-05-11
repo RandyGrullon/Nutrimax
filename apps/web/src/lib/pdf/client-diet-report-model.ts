@@ -13,7 +13,6 @@ export type AssignmentOptionPdf = {
   id: string;
   diet_id: string;
   diet_name: string;
-  meal_plan_name: string | null;
   status: string;
   starts_on: string | null;
   notes: string | null;

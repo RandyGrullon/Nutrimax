@@ -1,11 +1,17 @@
 import { unstable_cache } from 'next/cache';
 import { cache } from 'react';
-import { createDietBodySchema, updateDietBodySchema } from '@nutrimax/shared';
+import {
+  createDietBodySchema,
+  updateDietBodySchema,
+  estimateMealPlanKcalFromItems,
+  parseMealPlanItems,
+  type MealPlanFoodRef,
+  type MealPlanReadItem,
+} from '@nutrimax/shared';
 import { ApiError } from '@/lib/server/auth';
-import { assertMealPlanCompatibleWithDiet } from '@/lib/server/diet-meal-plan-link';
 import { dbQuery, dbQueryOne } from '@/lib/server/db';
 import { NUTRIMAX_READ_CACHE_TAG } from '@/lib/server/read-cache';
-import { getMealPlanById, resolveMealPlanForDisplay, type ResolvedMealPlan } from '@/lib/server/meal-plans-server';
+import { listFoodsByIds } from '@/lib/server/foods-server';
 
 export interface DietRow {
   id: string;
@@ -14,29 +20,33 @@ export interface DietRow {
   name: string;
   description: string | null;
   plan: unknown;
-  meal_plan_id: string | null;
+  items: unknown;
 }
 
-export type DietListRow = DietRow & {
-  meal_plan_name: string | null;
-};
+export type DietListRow = DietRow;
 
 export type DietDetailRow = DietRow & {
-  meal_plan: ResolvedMealPlan | null;
+  resolved_items: MealPlanReadItem[];
+  estimated_kcal: number;
 };
 
 async function fetchDietsListUncached(): Promise<DietListRow[]> {
   return dbQuery<DietListRow>(
-    `SELECT d.id, d.created_at, d.updated_at, d.name, d.description, d.plan, d.meal_plan_id,
-            mp.name AS meal_plan_name
-       FROM diets d
-       LEFT JOIN meal_plans mp ON mp.id = d.meal_plan_id
-       ORDER BY d.updated_at DESC`,
+    `SELECT id, created_at, updated_at, name, description, plan, items
+       FROM diets
+       ORDER BY updated_at DESC`,
   );
+}
+
+async function fetchDietsSummaryUncached(): Promise<{ id: string; name: string }[]> {
+  return dbQuery<{ id: string; name: string }>(`SELECT id, name FROM diets ORDER BY name ASC`);
 }
 
 /** Una lectura por request si varias partes del árbol RSC llaman al listado (sin Data Cache). */
 export const listDiets = cache(fetchDietsListUncached);
+
+/** Versión ligera para selectores/paneles que solo necesitan id y nombre. */
+export const listDietsSummary = cache(fetchDietsSummaryUncached);
 
 /** Biblioteca de dietas para RSC con Data Cache (Vercel). */
 export const listDietsCachedForRsc = unstable_cache(fetchDietsListUncached, ['nutrimax-diets-list'], {
@@ -44,42 +54,58 @@ export const listDietsCachedForRsc = unstable_cache(fetchDietsListUncached, ['nu
   tags: [NUTRIMAX_READ_CACHE_TAG],
 });
 
-async function fetchDietJoinRow(id: string): Promise<
-  | (DietRow & {
-      mp_id: string | null;
-    })
-  | undefined
-> {
-  return dbQueryOne<DietRow & { mp_id: string | null }>(
-    `SELECT d.id, d.created_at, d.updated_at, d.name, d.description, d.plan, d.meal_plan_id,
-            mp.id AS mp_id
-       FROM diets d
-       LEFT JOIN meal_plans mp ON mp.id = d.meal_plan_id
-       WHERE d.id = $1`,
-    [id],
-  );
-}
+/** Versión ligera cacheada. */
+export const listDietsSummaryCachedForRsc = unstable_cache(
+  fetchDietsSummaryUncached,
+  ['nutrimax-diets-summary'],
+  {
+    revalidate: 180,
+    tags: [NUTRIMAX_READ_CACHE_TAG],
+  },
+);
 
 /** Una lectura por request: `generateMetadata` y la página comparten la misma fila. */
 export const getDietById = cache(async (id: string): Promise<DietDetailRow> => {
-  const row = await fetchDietJoinRow(id);
+  const row = await dbQueryOne<DietRow>(
+    `SELECT id, created_at, updated_at, name, description, plan, items FROM diets WHERE id = $1`,
+    [id],
+  );
   if (!row) throw new ApiError(404, 'No encontramos esa dieta.');
 
-  let meal_plan: ResolvedMealPlan | null = null;
-  if (row.meal_plan_id && row.mp_id) {
-    const mp = await getMealPlanById(row.meal_plan_id);
-    meal_plan = await resolveMealPlanForDisplay(mp);
-  }
+  const items = parseMealPlanItems(row.items);
+  const ids = [...new Set(items.map((i) => i.food_id))];
+  const foods = ids.length ? await listFoodsByIds(ids) : [];
+  
+  const foodMap = new Map(
+    foods.map((f) => [
+      f.id,
+      {
+        id: f.id,
+        name: f.name,
+        kcal_per_100g: Number(f.kcal_per_100g),
+      } satisfies MealPlanFoodRef,
+    ]),
+  );
+  const kcalMap = new Map(
+    foods.map((f) => [f.id, { kcal_per_100g: Number(f.kcal_per_100g) }]),
+  );
+  
+  const sorted = [...items].sort((a, b) => a.order - b.order || a.meal.localeCompare(b.meal));
+  const estimated = estimateMealPlanKcalFromItems(items, kcalMap);
+  const resolvedItems: MealPlanReadItem[] = sorted.map((it) => {
+    const food = foodMap.get(it.food_id) ?? null;
+    return {
+      meal: it.meal,
+      portion_grams: it.portion_grams,
+      order: it.order,
+      food,
+    };
+  });
 
   return {
-    id: row.id,
-    created_at: row.created_at,
-    updated_at: row.updated_at,
-    name: row.name,
-    description: row.description,
-    plan: row.plan,
-    meal_plan_id: row.meal_plan_id,
-    meal_plan,
+    ...row,
+    resolved_items: resolvedItems,
+    estimated_kcal: estimated,
   };
 });
 
@@ -89,37 +115,32 @@ export async function createDiet(body: unknown): Promise<DietDetailRow> {
     const first = parsed.error.issues[0]?.message ?? 'Datos de dieta no válidos.';
     throw new ApiError(400, first);
   }
-  const { name, description, plan, meal_plan_id: rawMeal } = parsed.data;
-  const meal_plan_id = rawMeal ?? null;
-  await assertMealPlanCompatibleWithDiet({ mealPlanId: meal_plan_id, dietPlan: plan });
+  const { name, description, plan } = parsed.data;
 
   const rows = await dbQuery<DietRow>(
-    `INSERT INTO diets (name, description, plan, meal_plan_id)
-       VALUES ($1, $2, $3::jsonb, $4)
-       RETURNING id, created_at, updated_at, name, description, plan, meal_plan_id`,
-    [name, description, JSON.stringify(plan), meal_plan_id],
+    `INSERT INTO diets (name, description, plan, items)
+       VALUES ($1, $2, $3::jsonb, $4::jsonb)
+       RETURNING id, created_at, updated_at, name, description, plan, items`,
+    [name, description, JSON.stringify(plan), JSON.stringify(plan.items ?? [])],
   );
   const created = rows[0];
   return getDietById(created.id);
 }
 
 export async function updateDiet(id: string, body: unknown): Promise<DietDetailRow> {
-  const existing = await fetchDietJoinRow(id);
-  if (!existing) throw new ApiError(404, 'No encontramos esa dieta.');
+  await getDietById(id);
   const parsed = updateDietBodySchema.safeParse(body);
   if (!parsed.success) {
     const first = parsed.error.issues[0]?.message ?? 'Datos de dieta no válidos.';
     throw new ApiError(400, first);
   }
-  const { name, description, plan, meal_plan_id: rawMeal } = parsed.data;
-  const meal_plan_id = rawMeal ?? null;
-  await assertMealPlanCompatibleWithDiet({ mealPlanId: meal_plan_id, dietPlan: plan });
+  const { name, description, plan } = parsed.data;
 
   const rows = await dbQuery<DietRow>(
-    `UPDATE diets SET name = $1, description = $2, plan = $3::jsonb, meal_plan_id = $4
+    `UPDATE diets SET name = $1, description = $2, plan = $3::jsonb, items = $4::jsonb
        WHERE id = $5
-       RETURNING id, created_at, updated_at, name, description, plan, meal_plan_id`,
-    [name, description, JSON.stringify(plan), meal_plan_id, id],
+       RETURNING id, created_at, updated_at, name, description, plan, items`,
+    [name, description, JSON.stringify(plan), JSON.stringify(plan.items ?? []), id],
   );
   if (!rows[0]) throw new ApiError(404, 'No encontramos esa dieta.');
   return getDietById(id);

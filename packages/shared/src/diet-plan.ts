@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { mealPlanItemsSchema } from './meal-plan';
 
 export const dietPlanGoalValues = [
   'weight_loss',
@@ -107,6 +108,7 @@ export const dietPlanSchema = z
         .max(8000, 'Máximo 8000 caracteres en instrucciones al paciente.'),
     ),
     professionalNotes: optTrim(8000),
+    items: mealPlanItemsSchema.default([]),
   })
   .strict()
   .superRefine((data, ctx) => {
@@ -139,8 +141,6 @@ export const createDietBodySchema = z.object({
     .min(30, 'La descripción resumida del plan debe tener al menos 30 caracteres.')
     .max(8000, 'La descripción no puede superar 8000 caracteres.'),
   plan: dietPlanSchema,
-  /** Plan alimenticio opcional (catálogo); debe ser compatible con plan.targetKcal. */
-  meal_plan_id: z.union([z.string().uuid(), z.null()]).optional(),
 });
 
 export type CreateDietBody = z.infer<typeof createDietBodySchema>;
@@ -167,6 +167,7 @@ export function defaultDietPlan(): DietPlan {
     patientInstructions:
       'Distribuir las tomas a lo largo del día, priorizar alimentos frescos y ajustar porciones según tolerancia. Consultar dudas con el profesional.',
     professionalNotes: '',
+    items: [],
   });
 }
 

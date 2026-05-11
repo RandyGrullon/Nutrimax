@@ -16,7 +16,8 @@ type DietApiDetail = {
   name: string;
   description: string | null;
   plan: unknown;
-  meal_plan: MealPlanReadModel | null;
+  resolved_items: unknown[];
+  estimated_kcal: number;
 };
 
 function slugFilePart(s: string): string {
@@ -68,7 +69,15 @@ export function ClientDietPdfExportPanel({ pdfContext }: { pdfContext: ClientDie
           selectedAssignment={sel}
           dietDescription={diet.description}
           plan={plan}
-          mealPlan={diet.meal_plan}
+          mealPlan={{
+            id: diet.id,
+            name: diet.name,
+            description: diet.description,
+            kcal_range_min: plan.targetKcal,
+            kcal_range_max: plan.targetKcal,
+            items: diet.resolved_items,
+            estimated_kcal: diet.estimated_kcal,
+          } as MealPlanReadModel}
         />,
       ).toBlob();
 
@@ -106,8 +115,7 @@ export function ClientDietPdfExportPanel({ pdfContext }: { pdfContext: ClientDie
         >
           {assignments.map((a) => (
             <option key={a.id} value={a.id}>
-              {a.diet_name}
-              {a.meal_plan_name ? ` · ${a.meal_plan_name}` : ''} · {a.status}
+              {a.diet_name} · {a.status}
             </option>
           ))}
         </Select>

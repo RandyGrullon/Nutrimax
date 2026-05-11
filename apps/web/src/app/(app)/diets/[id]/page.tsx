@@ -70,7 +70,15 @@ export default async function DietDetailPage({ params }: { params: Promise<{ id:
         description={diet.description}
         plan={plan}
         updatedAtLabel={updatedLabel}
-        mealPlan={diet.meal_plan}
+        mealPlan={{
+          id: diet.id,
+          name: diet.name,
+          description: diet.description,
+          kcal_range_min: plan.targetKcal,
+          kcal_range_max: plan.targetKcal,
+          items: diet.resolved_items,
+          estimated_kcal: diet.estimated_kcal,
+        }}
       />
     </div>
   );

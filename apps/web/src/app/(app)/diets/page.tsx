@@ -22,7 +22,6 @@ function toDietAdminRow(row: Awaited<ReturnType<typeof listDietsCachedForRsc>>[n
     name: row.name,
     description: row.description,
     updated_at: row.updated_at instanceof Date ? row.updated_at.toISOString() : String(row.updated_at),
-    meal_plan_name: row.meal_plan_name ?? null,
   };
 }
 

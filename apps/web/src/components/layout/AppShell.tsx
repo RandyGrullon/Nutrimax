@@ -6,6 +6,7 @@ import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { PwaInstallButton } from '@/components/pwa/PwaInstallButton';
 import { Settings } from 'lucide-react';
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 
 /**
  * Shell cliente: acciones de cabecera viven aquí (mismo bundle) para evitar el fallo Webpack
@@ -21,6 +22,11 @@ export function AppShell({
   navMobile: React.ReactNode;
   children: React.ReactNode;
 }) {
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
+
   return (
     <div
       className="relative flex min-h-dvh flex-col bg-background nb-surface-glow"
@@ -37,7 +43,11 @@ export function AppShell({
               className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:border-white/[0.1] dark:bg-white/[0.03] dark:hover:bg-white/[0.08]"
               title="Ajustes"
             >
-              <Settings className="h-[1.2rem] w-[1.2rem]" />
+              {hydrated ? (
+                <Settings className="h-[1.2rem] w-[1.2rem]" />
+              ) : (
+                <div className="h-[1.2rem] w-[1.2rem]" />
+              )}
               <span className="sr-only">Ajustes</span>
             </Link>
             <LogOutButton />

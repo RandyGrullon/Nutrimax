@@ -162,9 +162,12 @@ async function insertTimeline(
 }
 
 export async function getTimeline(clientId: string, limit = 50): Promise<unknown[]> {
-  await getClientById(clientId);
   return dbQuery(
-    `SELECT * FROM client_timeline_events WHERE client_id = $1 ORDER BY created_at DESC LIMIT $2`,
+    `SELECT id, type, title, body, created_at
+       FROM client_timeline_events
+       WHERE client_id = $1
+       ORDER BY created_at DESC
+       LIMIT $2`,
     [clientId, limit],
   );
 }

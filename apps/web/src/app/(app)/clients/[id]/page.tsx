@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import { ApiError } from '@/lib/server/auth';
 import { getClientById, getTimeline, type ClientRow } from '@/lib/server/clients-server';
 import { listAssignmentsForClient } from '@/lib/server/assignments-server';
-import { listDiets } from '@/lib/server/diets-server';
+import { listDietsSummary } from '@/lib/server/diets-server';
 import { listClientProgressSnapshots } from '@/lib/server/progress-server';
 import { ClientDietPdfExportPanel } from '@/components/clients/ClientDietPdfExportPanel';
 import {
@@ -11,16 +11,15 @@ import {
 } from '@/components/clients/ClientDietAssignmentsPanel';
 import { ClinicalProfileReadView } from '@/components/clients/ClinicalProfileReadView';
 import { DeleteClientFromDetailButton } from '@/components/clients/DeleteClientFromDetailButton';
-import {
-  ClientStatisticsSection,
-  mapProgressRow,
-} from '@/components/clients/ClientStatisticsSection';
+import { ClientStatisticsSection } from '@/components/clients/ClientStatisticsSection';
+import { mapProgressRow } from '@/lib/clients/progress-snapshot-map';
 import { CmsBreadcrumb } from '@/components/cms/CmsBreadcrumb';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { HelpInfoButton } from '@/components/ui/HelpInfoButton';
 import type { ClientDietPdfContext } from '@/lib/pdf/client-diet-report-model';
 import { extractClinicalGoalStep2 } from '@/lib/pdf/clinical-goal-snippet';
+import { ClientIntakeManager } from '@/components/clients/ClientIntakeManager';
 
 function formatImcTwoDecimals(value: unknown): string {
   const n = typeof value === 'number' ? value : Number(value);
@@ -43,23 +42,21 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
   let client: ClientRow;
   let timelineRaw: unknown[];
   let assignments: Awaited<ReturnType<typeof listAssignmentsForClient>>;
-  let dietList: Awaited<ReturnType<typeof listDiets>>;
+  let diets: Awaited<ReturnType<typeof listDietsSummary>>;
   let progressRows: Awaited<ReturnType<typeof listClientProgressSnapshots>>;
 
   try {
-    [client, timelineRaw, assignments, dietList, progressRows] = await Promise.all([
+    [client, timelineRaw, assignments, diets, progressRows] = await Promise.all([
       getClientById(id),
       getTimeline(id),
       listAssignmentsForClient(id),
-      listDiets(),
+      listDietsSummary(),
       listClientProgressSnapshots(id),
     ]);
   } catch (e) {
     if (e instanceof ApiError && e.status === 404) notFound();
     throw e;
   }
-
-  const diets = dietList.map((d) => ({ id: d.id, name: d.name }));
 
   const derived = client.derived_metrics as Record<string, unknown> | null;
   const name = String(client.full_name);
@@ -72,7 +69,6 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
     id: String(a.id),
     diet_id: String(a.diet_id),
     diet_name: String(a.diet_name),
-    meal_plan_name: a.meal_plan_name != null ? String(a.meal_plan_name) : null,
     status: String(a.status),
     notes: a.notes != null ? String(a.notes) : null,
     starts_on: a.starts_on != null ? String(a.starts_on) : null,
@@ -114,7 +110,6 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
       id: a.id,
       diet_id: a.diet_id,
       diet_name: a.diet_name,
-      meal_plan_name: a.meal_plan_name ?? null,
       status: a.status,
       starts_on: a.starts_on ?? null,
       notes: a.notes ?? null,
@@ -273,6 +268,17 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
         </div>
 
         <aside className="space-y-6 lg:sticky lg:top-24 lg:self-start">
+          <Card className="overflow-hidden p-0 border-brand-500/20 bg-brand-500/[0.02] shadow-sm">
+            <CardHeader className="border-b border-brand-500/10 px-5 py-4">
+              <CardTitle className="text-xs font-bold uppercase tracking-wider text-brand-700 dark:text-brand-400">
+                Onboarding de Paciente
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-5">
+              <ClientIntakeManager clientId={id} />
+            </CardContent>
+          </Card>
+
           <Card className="overflow-hidden p-0">
             <CardHeader className="flex flex-row items-center justify-between gap-2 border-b border-border bg-muted/20 px-5 py-4">
               <CardTitle className="text-base">Dietas y asignaciones</CardTitle>

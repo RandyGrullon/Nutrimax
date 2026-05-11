@@ -321,7 +321,6 @@ export function ClientDietReportDocument(props: ClientDietReportPdfProps) {
           <Text style={styles.heroTitle}>{client.fullName}</Text>
           <Text style={styles.heroSub}>
             Plan asignado: {dietName}
-            {selectedAssignment.meal_plan_name ? ` · ${selectedAssignment.meal_plan_name}` : ''}
           </Text>
           <View style={styles.pillRow}>
             <View style={styles.pill}>
@@ -443,10 +442,8 @@ export function ClientDietReportDocument(props: ClientDietReportPdfProps) {
 
         {mealPlan ? (
           <>
-            <Text style={styles.sectionTitle}>Plan alimenticio (tomas y alimentos)</Text>
+            <Text style={styles.sectionTitle}>Distribución de alimentos</Text>
             <View style={styles.cardDark}>
-              <PdfRow label="Nombre" value={mealPlan.name} />
-              <PdfRow label="Rango energía" value={`${mealPlan.kcal_range_min}–${mealPlan.kcal_range_max} kcal/día`} />
               <PdfRow label="Energía estimada" value={`~${mealPlan.estimated_kcal} kcal/día`} />
               {mealPlan.description ? <PdfRow label="Descripción" value={mealPlan.description} /> : null}
             </View>

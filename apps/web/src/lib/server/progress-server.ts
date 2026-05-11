@@ -49,7 +49,6 @@ function defaultPeriodMonth(d: Date): string {
 }
 
 export async function listClientProgressSnapshots(clientId: string): Promise<ProgressSnapshotRow[]> {
-  await getClientById(clientId);
   if (!(await progressTableExists())) return [];
   return dbQuery<ProgressSnapshotRow>(
     `SELECT * FROM client_progress_snapshots WHERE client_id = $1 ORDER BY recorded_at ASC, created_at ASC`,

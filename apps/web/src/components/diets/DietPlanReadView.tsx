@@ -60,9 +60,7 @@ export function DietPlanReadView({
       </Section>
 
       {mealPlan ? (
-        <Section title="Plan alimenticio vinculado">
-          <Row label="Nombre" value={mealPlan.name} />
-          <Row label="Rango para dietas" value={`${mealPlan.kcal_range_min}–${mealPlan.kcal_range_max} kcal/día`} />
+        <Section title="Distribución de alimentos">
           <Row label="Energía estimada (porciones)" value={`~${mealPlan.estimated_kcal} kcal/día`} />
           {mealPlan.description ? (
             <Row label="Descripción" value={mealPlan.description} />

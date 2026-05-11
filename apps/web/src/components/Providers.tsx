@@ -1,5 +1,6 @@
 'use client';
 
+import { type ReactNode } from 'react';
 import { Toaster } from 'sonner';
 import { GlobalLoadingBar } from '@/components/GlobalLoadingBar';
 import { ThemeProvider, useTheme } from '@/components/theme/ThemeProvider';

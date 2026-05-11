@@ -53,9 +53,9 @@ function isUniqueViolation(e: unknown): boolean {
 
 async function countMealPlansReferencingFood(foodId: string): Promise<number> {
   const row = await dbQueryOne<{ n: string }>(
-    `SELECT COUNT(*)::text AS n FROM meal_plans mp
+    `SELECT COUNT(*)::text AS n FROM diets d
        WHERE EXISTS (
-         SELECT 1 FROM jsonb_array_elements(mp.items) elem
+         SELECT 1 FROM jsonb_array_elements(d.items) elem
          WHERE elem->>'food_id' = $1
        )`,
     [foodId],
@@ -179,7 +179,7 @@ export async function deleteFood(id: string): Promise<{ deleted: true }> {
   if (refs > 0) {
     throw new ApiError(
       409,
-      'No se puede eliminar: este alimento está en uno o más planes alimenticios. Quita las referencias primero.',
+      'No se puede eliminar: este alimento está en una o más dietas de la biblioteca. Quita las referencias primero.',
     );
   }
   await dbQuery(`DELETE FROM foods WHERE id = $1`, [id]);
